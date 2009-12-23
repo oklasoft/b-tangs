@@ -49,8 +49,9 @@ module SequenceBinner
       best_sequence = best[SEQUENCE_COL]
       best_name = best[NAME_COL]
       yield [ best_sequence[20,20], best[NAME_COL], best_sequence, best[QUALITY_COL] ]
+      levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
-        if best_sequence == v[SEQUENCE_COL] || best_sequence.levenshtein_similar(v[SEQUENCE_COL]) >= 0.95 then
+        if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.95 then
           Wukong.logger.info "#{v[NAME_COL]} matches #{best_name}"
           next
         end

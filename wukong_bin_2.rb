@@ -53,8 +53,9 @@ module SequenceBinner
       yield best_sequence
       yield best[NAME_COL].sub(/^@/,'+')
       yield best[QUALITY_COL]
+      levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
-        if best_sequence == v[SEQUENCE_COL] || best_sequence.levenshtein_similar(v[SEQUENCE_COL]) >= 0.95 then
+        if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.95 then
           Wukong.logger.info "#{v[NAME_COL]} matches #{best_name}"
           next
         end
