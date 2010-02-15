@@ -8,7 +8,7 @@ module SequenceBinner
     
     def process line
       (read_name,sequence,quality) = line.split(/\t/)
-      yield [sequence[20,20], read_name, sequence, quality]
+      yield [sequence[40,60], read_name, sequence, quality]
     end
   end
 
@@ -45,13 +45,20 @@ module SequenceBinner
       best_index = top_quality_index(values)
       best = values.delete_at(best_index)
       best_sequence = best[SEQUENCE_COL]
-      yield [ best[NAME_COL], best_sequence, best[QUALITY_COL] ]
+      # yield [ best_sequence[20,20], best[NAME_COL], best_sequence, best[QUALITY_COL] ]
+      yield best[NAME_COL]
+      yield best_sequence
+      yield best[NAME_COL].sub(/^@/,'+')
+      yield best[QUALITY_COL]
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
         if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.90 then
           next
         end
-        yield [ v[NAME_COL], v[SEQUENCE_COL], v[QUALITY_COL] ]
+        yield v[NAME_COL]
+        yield v[SEQUENCE_COL]
+        yield v[NAME_COL].sub(/^@/,'+')
+        yield v[QUALITY_COL]
       end #values
       
     end #finalize

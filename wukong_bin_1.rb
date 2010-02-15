@@ -1,8 +1,6 @@
+#!/usr/bin/ruby1.9
 require 'wukong'
 require 'amatch'
-
-Wukong.logger = Wukong.default_log4r_logger
-Wukong.logger.outputters = Log4r::FileOutputter.new("f1", :filename => "./bin1.log")
 
 module SequenceBinner
   
@@ -47,15 +45,13 @@ module SequenceBinner
       best_index = top_quality_index(values)
       best = values.delete_at(best_index)
       best_sequence = best[SEQUENCE_COL]
-      best_name = best[NAME_COL]
-      yield [ best_sequence[20,20], best[NAME_COL], best_sequence, best[QUALITY_COL] ]
+      yield [ best[NAME_COL], best_sequence, best[QUALITY_COL] ]
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
-        if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.95 then
-          Wukong.logger.info "#{v[NAME_COL]} matches #{best_name}"
+        if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.90 then
           next
         end
-        yield [ v[SEQUENCE_COL][20,20], v[NAME_COL], v[SEQUENCE_COL], v[QUALITY_COL] ]
+        yield [ v[NAME_COL], v[SEQUENCE_COL], v[QUALITY_COL] ]
       end #values
       
     end #finalize
