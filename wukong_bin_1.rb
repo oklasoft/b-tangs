@@ -7,8 +7,11 @@ module SequenceBinner
   class Mapper < Wukong::Streamer::LineStreamer
     
     def process line
-      (read_name,sequence,quality_name,quality) = line.split(/\t/)
-      yield [sequence[0,20], read_name, sequence, quality]
+      # (read_name,sequence,quality_name,quality) = line.split(/\t/)
+      (line_number_forward,reader_forward,sequence_forward,quality_forward,
+       line_number_reverse,reader_reverse,sequence_reverse,quality_reverse) = line.split(/\t/)
+       read_name = "@#{reader_reverse}:#{line_number_forward}"
+      yield [sequence[0,20], read_name, sequence_forward, quality_forward, sequence_reverse, quality_reverse]
     end
   end
 
@@ -18,6 +21,8 @@ module SequenceBinner
     NAME_COL = 1
     SEQUENCE_COL = 2
     QUALITY_COL = 3
+    SEQUENCE_COL_REV = 4
+    QUALITY_COL_REV = 5
     
     def phred_quality(char)
       char.ord - 33
@@ -51,7 +56,7 @@ module SequenceBinner
         if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.90 then
           next
         end
-        yield [ v[NAME_COL], v[SEQUENCE_COL], v[QUALITY_COL] ]
+        yield [ v[NAME_COL], v[SEQUENCE_COL], v[QUALITY_COL], v[SEQUENCE_COL_REV], v[QUALITY_COL_REV] ]
       end #values
       
     end #finalize
