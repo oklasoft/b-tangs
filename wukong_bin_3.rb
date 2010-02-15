@@ -7,8 +7,10 @@ module SequenceBinner
   class Mapper < Wukong::Streamer::LineStreamer
     
     def process line
-      (read_name,sequence,quality) = line.split(/\t/)
-      yield [sequence[40,60], read_name, sequence, quality]
+      # (read_name,sequence,quality) = line.split(/\t/)
+      (read_name,sequence_forward,quality_forward,
+       sequence_reverse,quality_reverse) = line.split(/\t/)
+      yield [sequence[40,60], read_name, sequence_forward, quality_forward, sequence_reverse, quality_reverse]
     end
   end
 
@@ -18,6 +20,8 @@ module SequenceBinner
     NAME_COL = 1
     SEQUENCE_COL = 2
     QUALITY_COL = 3
+    SEQUENCE_COL_REV = 4
+    QUALITY_COL_REV = 5
     
     def phred_quality(char)
       char.ord - 33
@@ -46,19 +50,22 @@ module SequenceBinner
       best = values.delete_at(best_index)
       best_sequence = best[SEQUENCE_COL]
       # yield [ best_sequence[20,20], best[NAME_COL], best_sequence, best[QUALITY_COL] ]
-      yield best[NAME_COL]
-      yield best_sequence
-      yield best[NAME_COL].sub(/^@/,'+')
-      yield best[QUALITY_COL]
+      yield [ best[NAME_COL], best[SEQUENCE_COL_REV], best[QUALITY_COL_REV], best_sequence, best[QUALITY_COL] ]
+      
+      # yield best[NAME_COL]
+      # yield best_sequence
+      # yield best[NAME_COL].sub(/^@/,'+')
+      # yield best[QUALITY_COL]
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
         if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.90 then
           next
         end
-        yield v[NAME_COL]
-        yield v[SEQUENCE_COL]
-        yield v[NAME_COL].sub(/^@/,'+')
-        yield v[QUALITY_COL]
+        yield [ v[NAME_COL], v[SEQUENCE_COL_REV], v[QUALITY_COL_REV], v[SEQUENCE_COL], v[QUALITY_COL] ]
+        # yield v[NAME_COL]
+        # yield v[SEQUENCE_COL]
+        # yield v[NAME_COL].sub(/^@/,'+')
+        # yield v[QUALITY_COL]
       end #values
       
     end #finalize
