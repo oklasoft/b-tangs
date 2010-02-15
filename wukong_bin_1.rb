@@ -7,9 +7,11 @@ module SequenceBinner
   class Mapper < Wukong::Streamer::LineStreamer
     
     def process line
-      (line_number_forward,reader_forward,sequence_forward,quality_forward,
-       line_number_reverse,reader_reverse,sequence_reverse,quality_reverse) = line.split(/\t/)
-       read_name = "@#{reader_reverse}:#{line_number_forward}"
+      # (line_number_forward,reader_forward,sequence_forward,quality_forward,
+      #  line_number_reverse,reader_reverse,sequence_reverse,quality_reverse) = line.split(/\t/)
+      #  read_name = "@#{reader_reverse}:#{line_number_forward}"
+      (read_name,sequence_forward,quality_forward,
+       sequence_reverse,quality_reverse) = line.split(/\t/)      
       yield [sequence_forward[0,20], read_name, sequence_forward, quality_forward, sequence_reverse, quality_reverse]
     end
   end
