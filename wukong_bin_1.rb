@@ -50,7 +50,7 @@ module SequenceBinner
       best_index = top_quality_index(values)
       best = values.delete_at(best_index)
       best_sequence = best[SEQUENCE_COL]
-      yield [ best[NAME_COL], best_sequence, best[QUALITY_COL] ]
+      yield [ best[NAME_COL], best_sequence, best[QUALITY_COL], best[SEQUENCE_COL_REV], best[QUALITY_COL_REV] ]
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
         if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.90 then
