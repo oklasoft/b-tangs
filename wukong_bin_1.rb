@@ -6,6 +6,9 @@ module SequenceBinner
   
   class Mapper < Wukong::Streamer::LineStreamer
     
+    #
+    # lzop -dc 101292s_1_1_export.txt.lzo| awk -F '\t' '{print $1":"NR"\t"$9"\t"$10}' > 1.txt
+    #
     def process line
       # (line_number_forward,reader_forward,sequence_forward,quality_forward,
       #  line_number_reverse,reader_reverse,sequence_reverse,quality_reverse) = line.split(/\t/)
