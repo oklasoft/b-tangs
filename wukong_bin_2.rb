@@ -7,8 +7,10 @@ module SequenceBinner
   class Mapper < Wukong::Streamer::LineStreamer
     
     def process line
-      (read_name,sequence,quality) = line.split(/\t/)
-      yield [sequence[20,20], read_name, sequence, quality]
+      # (read_name,sequence,quality) = line.split(/\t/)
+      (read_name,sequence_forward,quality_forward,
+       sequence_reverse,quality_reverse) = line.split(/\t/)      
+      yield [sequence_forward[20,20], read_name, sequence_forward, quality_forward, sequence_reverse, quality_reverse]
     end
   end
 
@@ -18,6 +20,8 @@ module SequenceBinner
     NAME_COL = 1
     SEQUENCE_COL = 2
     QUALITY_COL = 3
+    SEQUENCE_COL_REV = 4
+    QUALITY_COL_REV = 5
     
     def phred_quality(char)
       char.ord - 33
@@ -45,13 +49,13 @@ module SequenceBinner
       best_index = top_quality_index(values)
       best = values.delete_at(best_index)
       best_sequence = best[SEQUENCE_COL]
-      yield [ best[NAME_COL], best_sequence, best[QUALITY_COL] ]
+      yield [ best[NAME_COL], best_sequence, best[QUALITY_COL], best[SEQUENCE_COL_REV], best[QUALITY_COL_REV] ]
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
         if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.90 then
           next
         end
-        yield [ v[NAME_COL], v[SEQUENCE_COL], v[QUALITY_COL] ]
+        yield [ v[NAME_COL], v[SEQUENCE_COL], v[QUALITY_COL], v[SEQUENCE_COL_REV], v[QUALITY_COL_REV] ]
       end #values
       
     end #finalize
