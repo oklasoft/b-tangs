@@ -11,18 +11,30 @@ end
 module SequenceBinner
   
   class Mapper < Wukong::Streamer::LineStreamer
+    FASTA_SEQUENCE_INDEX = 1
+    QSEQ_SEQUENCE_INDEX = 8
     
     #
     # lzop -dc 101292s_1_1_export.txt.lzo| awk -F '\t' '{print $1":"NR"\t"$9"\t"$10}' > 1.txt
     # lzop -dc lgs101435_s_1_1_qseq_raw.txt.lzo | egrep '1$' | awk -F '\t' '{print $1":"$2":"$3":"$4":"$5":"$6":"$7":"$8"\t"$9"\t"$10}' > 1.txt
     #
     def process line
-      # (line_number_forward,reader_forward,sequence_forward,quality_forward,
-      #  line_number_reverse,reader_reverse,sequence_reverse,quality_reverse) = line.split(/\t/)
-      #  read_name = "@#{reader_reverse}:#{line_number_forward}"
-      (read_name,sequence_forward,quality_forward,
-       sequence_reverse,quality_reverse) = line.split(/\t/)      
-      yield [sequence_forward[key_range], read_name, sequence_forward, quality_forward, sequence_reverse, quality_reverse]
+      parts = line.chomp.split(/\t/)      
+      yield [parts[sequence_index][key_range], *parts]
+    end
+    
+    def sequence_index
+      @sequence_index ||= parse_format(options[:input_format]) or
+        raise "Please let us know the input file format with --input_format= argument"
+    end
+    
+    def parse_format(input_format)
+      case input_format
+        when /qseq/i
+          QSEQ_SEQUENCE_INDEX
+        when /fasta/i
+          FASTA_SEQUENCE_INDEX
+      end
     end
     
     def key_range
