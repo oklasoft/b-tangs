@@ -8,6 +8,7 @@ module SequenceBinner
     
     #
     # lzop -dc 101292s_1_1_export.txt.lzo| awk -F '\t' '{print $1":"NR"\t"$9"\t"$10}' > 1.txt
+    # lzop -dc lgs101435_s_1_1_qseq_raw.txt.lzo | egrep '1$' | awk -F '\t' '{print $1":"$2":"$3":"$4":"$5":"$6":"$7":"$8"\t"$9"\t"$10}' > 1.txt
     #
     def process line
       # (line_number_forward,reader_forward,sequence_forward,quality_forward,
@@ -20,13 +21,13 @@ module SequenceBinner
     
     def key_range
       @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
-        raise "Please supply both a --range_start= and --range_length= argument"
+        raise "Please supply both a --range_start= and --range_size= argument"
     end
     
     # given a start position and a length create a valid range
     def parse_key_range(start,length)
       return nil unless options[:range_start] && options[:range_size]
-      Range.new(start, starge+length,true)
+      Range.new(start.to_i, start.to_i+length.to_i,true)
     end
   end
 
