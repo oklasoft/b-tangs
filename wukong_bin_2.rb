@@ -10,7 +10,7 @@ module SequenceBinner
       # (read_name,sequence,quality) = line.split(/\t/)
       (read_name,sequence_forward,quality_forward,
        sequence_reverse,quality_reverse) = line.split(/\t/)      
-      yield [sequence_forward[20,20], read_name, sequence_forward, quality_forward, sequence_reverse, quality_reverse]
+      yield [sequence_forward[20,40], read_name, sequence_forward, quality_forward, sequence_reverse, quality_reverse]
     end
   end
 
