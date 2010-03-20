@@ -14,13 +14,19 @@ module SequenceBinner
     FASTA_SEQUENCE_INDEX = 1
     QSEQ_SEQUENCE_INDEX = 8
     
+    def initialize(*args)
+      super(*args)
+      sequence_index()
+      key_range()
+    end
+    
     #
     # lzop -dc 101292s_1_1_export.txt.lzo| awk -F '\t' '{print $1":"NR"\t"$9"\t"$10}' > 1.txt
     # lzop -dc lgs101435_s_1_1_qseq_raw.txt.lzo | egrep '1$' | awk -F '\t' '{print $1":"$2":"$3":"$4":"$5":"$6":"$7":"$8"\t"$9"\t"$10}' > 1.txt
     #
     def process line
       parts = line.chomp.split(/\t/)      
-      yield [parts[sequence_index][key_range], *parts]
+      yield [parts[@sequence_index][@key_range], *parts]
     end
     
     def sequence_index
@@ -34,6 +40,8 @@ module SequenceBinner
           QSEQ_SEQUENCE_INDEX
         when /fasta/i
           FASTA_SEQUENCE_INDEX
+        else
+          nil
       end
     end
     
@@ -72,7 +80,7 @@ module SequenceBinner
       index
     end
     
-    # values is an array of key, read_name, sequence, quality
+    # values is an array of key, input format fields
     def finalize
       best_index = top_quality_index(values)
       best = values.delete_at(best_index)
