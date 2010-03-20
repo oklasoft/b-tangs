@@ -2,6 +2,12 @@
 require 'wukong'
 require 'amatch'
 
+class String
+  def phred_quality_score_sum
+    self.each_char.inject(0.0) {|sum,char| sum += (char.ord-33)}
+  end
+end
+
 module SequenceBinner
   
   class Mapper < Wukong::Streamer::LineStreamer
@@ -40,19 +46,12 @@ module SequenceBinner
     SEQUENCE_COL_REV = 4
     QUALITY_COL_REV = 5
     
-    def phred_quality(char)
-      char.ord - 33
-    end
-    
-    def phred_quality_sum(quality)
-      quality.each_char.inject(0.0) {|sum,char| sum += phred_quality(char)}
-    end
 
     def top_quality_index(qualities)
       max = -100.0
       index = 0
       qualities.each_with_index do |qual,i|
-        sum = phred_quality_sum(qual[QUALITY_COL])
+        sum = qual[QUALITY_COL].phred_quality_score_sum
         if  sum > max then
           max = sum
           index = i
