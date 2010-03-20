@@ -9,10 +9,12 @@ class String
 end
 
 module SequenceBinner
+  FASTA_SEQUENCE_INDEX = 1
+  FASTA_QUALITY_INDEX = 2
+  QSEQ_SEQUENCE_INDEX = 8
+  QSEQ_QUALITY_INDEX = 9
   
   class Mapper < Wukong::Streamer::LineStreamer
-    FASTA_SEQUENCE_INDEX = 1
-    QSEQ_SEQUENCE_INDEX = 8
     
     def initialize(*args)
       super(*args)
@@ -37,9 +39,9 @@ module SequenceBinner
     def parse_format(input_format)
       case input_format
         when /qseq/i
-          QSEQ_SEQUENCE_INDEX
+          SequenceBinner::QSEQ_SEQUENCE_INDEX
         when /fasta/i
-          FASTA_SEQUENCE_INDEX
+          SequenceBinner::FASTA_SEQUENCE_INDEX
         else
           nil
       end
@@ -59,19 +61,34 @@ module SequenceBinner
 
   class Reducer < Wukong::Streamer::ListReducer
     
-    KEY_COL = 0
-    NAME_COL = 1
-    SEQUENCE_COL = 2
-    QUALITY_COL = 3
-    SEQUENCE_COL_REV = 4
-    QUALITY_COL_REV = 5
+    def initialize(*args)
+      super(*args)
+      parse_format()
+      @similarity ||= (options[:similarity].to_f || 0.90)
+    end
     
+    def parse_format()
+      case options[:input_format]
+        when /qseq/i
+          @sequence_col = SequenceBinner::QSEQ_SEQUENCE_INDEX
+          @quality_col = SequenceBinner::QSEQ_QUALITY_INDEX
+        when /fasta/i
+          @sequence_col = SequenceBinner::FASTA_SEQUENCE_INDEX
+          @quality_col = SequenceBinner::FASTA_QUALITY_INDEX
+        else
+          raise "Please let us know the input file format with --input_format= argument"
+      end
+    end
 
-    def top_quality_index(qualities)
+    # find the best score in this set
+    # ALSO we shift off the first element of each value array, thus removing
+    # the key column from all, so our indexes picked above actually work
+    def top_quality_index!(qualities)
       max = -100.0
       index = 0
       qualities.each_with_index do |qual,i|
-        sum = qual[QUALITY_COL].phred_quality_score_sum
+        qual.shift
+        sum = qual[@quality_col].phred_quality_score_sum
         if  sum > max then
           max = sum
           index = i
@@ -82,16 +99,16 @@ module SequenceBinner
     
     # values is an array of key, input format fields
     def finalize
-      best_index = top_quality_index(values)
+      best_index = top_quality_index!(values)
       best = values.delete_at(best_index)
-      best_sequence = best[SEQUENCE_COL]
-      yield [ best[NAME_COL], best_sequence, best[QUALITY_COL], best[SEQUENCE_COL_REV], best[QUALITY_COL_REV] ]
+      best_sequence = best[@sequence_col]
+      yield [ best ]
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
-        if best_sequence == v[SEQUENCE_COL] || levenshtein_pattern.similar(v[SEQUENCE_COL]) >= 0.90 then
+        if best_sequence == v[@sequence_col] || levenshtein_pattern.similar(v[@sequence_col]) >= @similarity then
           next
         end
-        yield [ v[NAME_COL], v[SEQUENCE_COL], v[QUALITY_COL], v[SEQUENCE_COL_REV], v[QUALITY_COL_REV] ]
+        yield [ v ]
       end #values
       
     end #finalize
