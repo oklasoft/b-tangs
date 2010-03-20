@@ -15,7 +15,18 @@ module SequenceBinner
       #  read_name = "@#{reader_reverse}:#{line_number_forward}"
       (read_name,sequence_forward,quality_forward,
        sequence_reverse,quality_reverse) = line.split(/\t/)      
-      yield [sequence_forward[0,20], read_name, sequence_forward, quality_forward, sequence_reverse, quality_reverse]
+      yield [sequence_forward[key_range], read_name, sequence_forward, quality_forward, sequence_reverse, quality_reverse]
+    end
+    
+    def key_range
+      @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
+        raise "Please supply both a --range_start= and --range_length= argument"
+    end
+    
+    # given a start position and a length create a valid range
+    def parse_key_range(start,length)
+      return nil unless options[:range_start] && options[:range_size]
+      Range.new(start, starge+length,true)
     end
   end
 
