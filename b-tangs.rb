@@ -11,8 +11,10 @@ end
 module SequenceBinner
   FASTA_SEQUENCE_INDEX = 1
   FASTA_QUALITY_INDEX = 2
+  FASTA_READ_END_INDEX = -1
   QSEQ_SEQUENCE_INDEX = 8
   QSEQ_QUALITY_INDEX = 9
+  QSEQ_READ_END_INDEX = 7
   
   class Mapper < Wukong::Streamer::LineStreamer
     
@@ -20,15 +22,17 @@ module SequenceBinner
       super(*args)
       sequence_index()
       key_range()
+      parse_endness_key()
     end
     
     #
     # lzop -dc 101292s_1_1_export.txt.lzo| awk -F '\t' '{print $1":"NR"\t"$9"\t"$10}' > 1.txt
     # lzop -dc lgs101435_s_1_1_qseq_raw.txt.lzo | egrep '1$' | awk -F '\t' '{print $1":"$2":"$3":"$4":"$5":"$6":"$7":"$8"\t"$9"\t"$10}' > 1.txt
+    # awk -F '\t' '2==$8 {print $0}' > 2.txt # for final output
     #
     def process line
       parts = line.chomp.split(/\t/)      
-      yield [parts[@sequence_index][@key_range], *parts]
+      yield [line_key(parts), *parts]
     end
     
     def sequence_index
@@ -47,7 +51,39 @@ module SequenceBinner
       end
     end
     
+    def read_end_index
+      @read_end_index ||=
+      case sequence_index
+        when SequenceBinner::QSEQ_SEQUENCE_INDEX
+          SequenceBinner::QSEQ_READ_END_INDEX
+        when SequenceBinner::FASTA_SEQUENCE_INDEX
+          SequenceBinner::FASTA_READ_END_INDEX
+      end
+    end
+    
     def key_range
+      @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
+        raise "Please supply both a --range_start= and --range_size= argument"
+    end
+
+    def single_end_key(parts)
+      parts[@sequence_index][@key_range]
+    end
+    
+    def paired_end_key(parts)
+      "#{parts[@read_end_index]}_#{single_end_key(parts)}"
+    end
+    
+    def parse_endness_key
+      case options[:endedness]
+        when /paired/i
+          read_end_index()
+          alias line_key paired_end_key
+        when /single/i
+          alias line_key single_end_key
+        else
+          raise "Please specify paired or single with --endedness"
+      end
       @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
         raise "Please supply both a --range_start= and --range_size= argument"
     end
