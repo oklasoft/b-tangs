@@ -5,6 +5,6 @@ IO.foreach(ARGV.shift) do |line|
 end
 
 IO.foreach(ARGV.shift) do |line|
-  next unless lines[line.split(/\t/)[3..5]]
+  next unless lines[line.split(/\t/)[3..5].join("\t")]
   puts line
 end
