@@ -21,6 +21,7 @@ module QseqJoiner
     def finalize
       return unless 2 == values.size
       values.sort! {|a,b| a[8].to_i <=> b[8].to_i}
+      # yield [ values[0][1..7], values[0][8..11], values[0][8..11] ]
       yield [ values[0][8], values[0][1..7], values[0][8..11] ]
       yield [ values[1][8], values[0][1..7], values[1][8..11] ]
     end #finalize
