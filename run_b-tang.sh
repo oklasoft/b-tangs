@@ -2,7 +2,7 @@
 
 ruby1.9 /tmp/b-tangs.rb --run=hadoop --input_format=qseq --range_start=00 --range_size=20 --endedness=paired ${1}_input ${1}_input_00_20 || exit 1
 ruby1.9 /tmp/b-tangs.rb --run=hadoop --input_format=qseq --range_start=40 --range_size=20 --endedness=paired ${1}_input_00_20 ${1}_input_20_40 || exit 1
-ruby1.9 /tmp/b-tangs.rb --run=hadoop --input_format=qseq --range_start=60 --range_size=20 --endedness=paired ${1}_input_20_20 ${1}_input_40_60 || exit 1
+ruby1.9 /tmp/b-tangs.rb --run=hadoop --input_format=qseq --range_start=60 --range_size=20 --endedness=paired ${1}_input_20_40 ${1}_input_40_60 || exit 1
 
 ruby1.9 /tmp/qseq_joiner.rb --run=hadoop ${1}_input_40_60/ ${1}_output || exit 1
 
