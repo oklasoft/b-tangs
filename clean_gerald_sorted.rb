@@ -21,7 +21,7 @@ lanes.each do |lane,sample|
   cmd_or_exit("hadoop fs -mkdir '#{sample}_input/'")
 
   # import
-  cmd_or_exit("hadoop fs -put input/s_#{sample}_*_sorted.txt '#{sample}_input/'")
+  cmd_or_exit("hadoop fs -put input/s_#{lane}_*_sorted.txt '#{sample}_input/'")
 
   # clean
   cmd_or_exit("ruby1.9 /home/glenns/tmp/b-tangs/b-tangs/gerald_sorted_joiner.rb --reduce_tasks=12 --run=hadoop #{sample}_input/ #{sample}_output")
