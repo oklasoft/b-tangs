@@ -30,8 +30,15 @@ lanes.each do |lane,sample|
   cmd_or_exit("hadoop fs -get #{sample}_output .")
   
   Dir.chdir("#{sample}_output") do
-    cmd_or_exit("cut -f -11 part-* > #{sample}_s_#{lane}_1_gerald_sorted.qseq")
-    cmd_or_exit("cut -f -7,12-15 part-* > #{sample}_s_#{lane}_2_gerald_sorted.qseq")
+    threads = []
+    {1 => '-11', 2 => '-7,12-15'}.each do |read,cuts|
+      threads << Thread.new do
+        cmd_or_exit("cut -f #{cuts} part-* > #{sample}_s_#{lane}_#{read}_gerald_sorted.qseq")
+      end
+    end
+    threads.each {|t| t.join}
+    # cmd_or_exit("cut -f -11 part-* > #{sample}_s_#{lane}_1_gerald_sorted.qseq")
+    # cmd_or_exit("cut -f -7,12-15 part-* > #{sample}_s_#{lane}_2_gerald_sorted.qseq")
   end
 end
 
