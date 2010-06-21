@@ -3,8 +3,11 @@ require 'wukong'
 require 'amatch'
 
 class String
+  
+  # sam : ASCII - 33
+  # illuma fastq : ASCII - 64
   def phred_quality_score_sum
-    self.each_char.inject(0.0) {|sum,char| sum += (char.ord-33)}
+    self.each_char.inject(0.0) {|sum,char| sum += (char.ord-64)}
   end
 end
 
