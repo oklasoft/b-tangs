@@ -8,12 +8,8 @@ def cmd_or_exit(cmd)
   exit -1 unless 0 == $?  
 end
 
-lanes = {
-6 => 'lgs000373',
-5 => 'lgs103702',
-3 => 'lgs103873',
-4 => 'lgs303605'
-}
+lanes = YAML.load_file(ARGV.first)
+
 
 lanes.each do |lane,sample|
   puts "#{sample} in #{lane}"
