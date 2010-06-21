@@ -50,7 +50,7 @@ module SamToSingleLines
     def process line
       return if line =~ /^@/
       parts = line.chomp.split(/\t/)
-      yield [parts[0], *parts]
+      yield [parts.shift, *parts]
     end
 
   end
@@ -68,11 +68,10 @@ module SamToSingleLines
     def finalize
       return unless 2 == values.size
       values.sort! {|a,b| a[BIT_IDX].to_i <=> b[BIT_IDX].to_i}
-      res [ key ]
-      values.each do |v|
-        res += [ v[BIT_IDX], v[CHR_IDX], v[POS_IDX], v[SEQ_IDX], v[QUALITY_IDX] ]
-      end
-      yield [ res ]
+      yield [ key, 
+        values[0][BIT_IDX], values[0][CHR_IDX], values[0][POS_IDX], values[0][SEQ_IDX], values[0][QUALITY_IDX],
+        values[1][BIT_IDX], values[1][CHR_IDX], values[1][POS_IDX], values[1][SEQ_IDX], values[1][QUALITY_IDX],
+       ]
     end #finalize
     
   end #reducer
