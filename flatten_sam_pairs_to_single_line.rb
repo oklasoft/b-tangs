@@ -67,7 +67,7 @@ module SamToSingleLines
     # we'll get now a line with the name, bit, chr, pos, seq, qual, bit, chr, pos, seq, qual
     def finalize
       return unless 2 == values.size
-      values.sort! {|a,b| a[BIT_IDX].to_i <=> b[BIT_IDX].to_i}
+      values.sort! {|a,b| SamToSingleLines.reverse_bit_after_forward(a[BIT_IDX].to_i,b[BIT_IDX].to_i)}
       yield [ key, 
         values[0][BIT_IDX], values[0][CHR_IDX], values[0][POS_IDX], values[0][SEQ_IDX], values[0][QUALITY_IDX],
         values[1][BIT_IDX], values[1][CHR_IDX], values[1][POS_IDX], values[1][SEQ_IDX], values[1][QUALITY_IDX],
