@@ -50,19 +50,29 @@ module SamToSingleLines
     def process line
       return if line =~ /^@/
       parts = line.chomp.split(/\t/)
-      yield [parts.shift, *parts]
+      yield [parts[0], *parts]
     end
 
   end
 
   class Reducer < Wukong::Streamer::ListReducer
-
+    NAME_IDX = 0
+    BIT_IDX = 1
+    CHR_IDX = 2
+    POS_IDX = 3
+    SEQ_IDX = 9
+    QUALITY_IDX = 10
+    
     # values is an array of key (the name), SAM fields (minues name)
     # we'll get now a line with the name, bit, chr, pos, seq, qual, bit, chr, pos, seq, qual
     def finalize
       return unless 2 == values.size
-      values.sort! {|a,b| a[8].to_i <=> b[8].to_i}
-      yield [ values[0][1..7], values[0][8..10], 'Y', values[1][8..10], 'Y' ]
+      values.sort! {|a,b| a[BIT_IDX].to_i <=> b[BIT_IDX].to_i}
+      res [ key ]
+      values.each do |v|
+        res += [ v[BIT_IDX], v[CHR_IDX], v[POS_IDX], v[SEQ_IDX], v[QUALITY_IDX] ]
+      end
+      yield [ res ]
     end #finalize
     
   end #reducer
