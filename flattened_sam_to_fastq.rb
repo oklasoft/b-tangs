@@ -88,6 +88,8 @@ module FlattenedSAMToFastq
   
   class Mapper < Wukong::Streamer::LineStreamer
     
+    SAM_TO_ILLUMINA_QUALITY_OFFSET = 31
+    
     # input is a 'flattened SAM' file
     # name bit chr pos seq qual bit chr pos seq qual
     # then you can:
@@ -112,7 +114,7 @@ module FlattenedSAMToFastq
     end
     
     def illumina_quality_string(quality)
-      quality.each_char.inject('') {|sum,char| sum += (char.ord+31).chr}
+      quality.each_char.inject('') {|sum,char| sum += (char.ord+SAM_TO_ILLUMINA_QUALITY_OFFSET).chr}
     end
 
   end
