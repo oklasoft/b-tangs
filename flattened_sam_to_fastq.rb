@@ -1,9 +1,26 @@
 #!/usr/bin/ruby1.9
 require 'wukong'
 
-# Given a SAM file, make up something new where the pairs are together one one
-# line. Also we only care about the name, sequence, quality, bit flags, and maps
-module RemoveLikePositionsFromFlattenedSAM
+class String
+  def complement
+    self.each_char.inject('') do |accum,char| 
+      accum += case char
+        when 'A'
+          'T'
+        when 'C'
+          'G'
+        when 'G'
+          'C'
+        when 'T'
+          'A'
+        else
+          chr
+      end
+    end
+  end
+end
+
+module FlattenedSAMToFastq
   IS_READ_PAIRED_ALIGNED = 2
   IS_UNMAPPED = 4
   IS_REVERSED_STRAND = 16
@@ -60,53 +77,47 @@ module RemoveLikePositionsFromFlattenedSAM
   POS_ONE_IDX = 3
   SEQ_ONE_IDX = 4
   QUALITY_ONE_IDX = 5
+  FIRST = [BIT_ONE_IDX,SEQ_ONE_IDX,QUALITY_ONE_IDX]
+
   BIT_TWO_IDX = 6
   CHR_TWO_IDX = 7
   POS_TWO_IDX = 8
   SEQ_TWO_IDX = 9
   QUALITY_TWO_IDX = 10
-
+  SECOND = [BIT_TWO_IDX,SEQ_TWO_IDX,QUALITY_TWO_IDX]
+  
   class Mapper < Wukong::Streamer::LineStreamer
     
     # input is a 'flattened SAM' file
     # name bit chr pos seq qual bit chr pos seq qual
     def process line
       parts = line.chomp.split(/\t/)
-      return unless RemoveLikePositionsFromFlattenedSAM.is_mapped(parts[BIT_ONE_IDX].to_i)
-      yield [parts[RemoveLikePositionsFromFlattenedSAM::CHR_ONE_IDX..RemoveLikePositionsFromFlattenedSAM::POS_ONE_IDX].join("_"), *parts]
+      order = [FIRST, SECOND]
+      order.reverse! if FlattenedSAMToFastq.is_second_read(parts[BIT_ONE_IDX].to_i)
+      res = [ parts[0] ]
+      order.each do |fields|
+        seq = parts[fields[1]]
+        quality = illumina_quality_string(parts[fields[2]])
+        
+        if FlattenedSAMToFastq.is_reversed?(parts[fields[0]].to_i)
+          seq = seq.complement.reverse
+          quality.reverse!
+        end
+        res += [seq, quality]
+      end
+      yield res
+    end
+    
+    def illumina_quality_string(quality)
+      quality.each_char.inject('') {|sum,char| sum += (char.ord+31).chr}
     end
 
   end
 
-  class Reducer < Wukong::Streamer::ListReducer
-    
-    def average_quality_score(quality_string)
-      quality_string.each_char.inject(0.0) {|sum,char| sum += (char.ord-33)}/quality_string.length
-    end
-    
-    # values is an array of key (the name), flattened SAM fields
-    # values are keyed on same "first" read position
-    def finalize
-      # we have the +1 on all the indexes since the values array has the key in the front
-      values.group_by { |v| "#{v[RemoveLikePositionsFromFlattenedSAM::CHR_TWO_IDX+1]}_#{v[RemoveLikePositionsFromFlattenedSAM::POS_TWO_IDX+1]}"}.each do |key,chunk|
-        # now we have a chunk of reads with all the same first position and all the same second position
-        chunk.sort! do |a,b| 
-          average_quality_score(a[QUALITY_ONE_IDX+1] + a[QUALITY_TWO_IDX+1]) <=> average_quality_score(b[QUALITY_ONE_IDX+1] + b[QUALITY_TWO_IDX+1])
-        end
-        final = chunk.first
-        yield [
-          # values.size, chunk.size,
-          final[NAME_IDX+1],
-          final[BIT_ONE_IDX+1], final[CHR_ONE_IDX+1], final[POS_ONE_IDX+1], final[SEQ_ONE_IDX+1], final[QUALITY_ONE_IDX+1],
-          final[BIT_TWO_IDX+1], final[CHR_TWO_IDX+1], final[POS_TWO_IDX+1], final[SEQ_TWO_IDX+1], final[QUALITY_TWO_IDX+1]
-        ]
-      end
-    end #finalize
-    
-  end #reducer
+
 end
     
 Wukong::Script.new(
-  RemoveLikePositionsFromFlattenedSAM::Mapper,
-  RemoveLikePositionsFromFlattenedSAM::Reducer
+  FlattenedSAMToFastq::Mapper,
+  nil
   ).run # Execute the script
