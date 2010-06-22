@@ -90,6 +90,9 @@ module FlattenedSAMToFastq
     
     # input is a 'flattened SAM' file
     # name bit chr pos seq qual bit chr pos seq qual
+    # then you can:
+    # awk -F '\t' '{print "@"$1"/1\n"$2"\n+"$1"/1\n"$3}'
+    # awk -F '\t' '{print "@"$1"/2\n"$4"\n+"$1"/2\n"$5}'
     def process line
       parts = line.chomp.split(/\t/)
       order = [FIRST, SECOND]
