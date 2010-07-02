@@ -98,6 +98,8 @@ def translate_fastq_to_qseq_with_prefix(input,prefix)
       qseq = line_to_qseq(fastq)
       File.open(filename_for_cycle(prefix,qseq.tile),"a") {|f| f.puts(qseq)}
       fastq = []
+      print "." if 0 == ($. % 1000)
+      puts "\n" if 0 == ($. % 100000)
     end
   end
 end
