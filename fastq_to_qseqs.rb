@@ -96,7 +96,7 @@ def translate_fastq_to_qseq_with_prefix(input,prefix)
     fastq << line.chomp
     if 4 == fastq.size
       qseq = line_to_qseq(fastq)
-      File.open(filename_for_cycle(qseq.tile),"a") {|f| f.puts(qseq)}
+      File.open(filename_for_cycle(prefix,qseq.tile),"a") {|f| f.puts(qseq)}
       fastq = []
     end
   end
