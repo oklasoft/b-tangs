@@ -68,24 +68,41 @@ module SequenceBinner
       @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
         raise "Please supply both a --range_start= and --range_size= argument"
     end
-
+    
     def single_end_key(parts)
       parts[@sequence_index][@key_range]
+    end
+    
+    def single_end_both_key(parts)
+      sequence = parts[@sequence_index]
+      "#{sequence[@key_range]}_#{(sequence.reverse)[@key_range]}"
     end
     
     def paired_end_key(parts)
       "#{parts[@read_end_index]}_#{single_end_key(parts)}"
     end
+
+    def paired_end_both_key(parts)
+      "#{parts[@read_end_index]}_#{single_end_both_key(parts)}"
+    end
     
     def parse_endness_key
-      case options[:endedness]
+      case options[:end_style]
         when /paired/i
           read_end_index()
-          alias line_key paired_end_key
+          if options[:both_ends] then
+            alias line_key paired_end_both_key
+          else
+            alias line_key paired_end_key
+          end
         when /single/i
-          alias line_key single_end_key
+          if options[:both_ends] then
+            alias line_key single_end_both_key
+          else
+            alias line_key single_end_key
+          end
         else
-          raise "Please specify paired or single with --endedness"
+          raise "Please specify paired or single with --end_style"
       end
       @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
         raise "Please supply both a --range_start= and --range_size= argument"
