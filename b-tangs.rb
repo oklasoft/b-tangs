@@ -34,8 +34,10 @@ module SequenceBinner
     # awk -F '\t' '2==$8 {print $0}' > 2.txt # for final output
     #
     def process line
-      parts = line.chomp.split(/\t/)      
-      yield [line_key(parts), *parts]
+      parts = line.chomp.split(/\t/)
+      key = line_key(parts)
+      return unless key
+      yield [key, *parts]
     end
     
     def sequence_index
@@ -75,7 +77,11 @@ module SequenceBinner
     
     def single_end_both_key(parts)
       sequence = parts[@sequence_index]
-      "#{sequence[@key_range]}_#{(sequence.reverse)[@key_range]}"
+      front = sequence[@key_range]
+      back = (sequence.reverse)[@key_range]
+      key = "#{front}_#{back}"
+      return nil if front == back
+      key
     end
     
     def paired_end_key(parts)
@@ -83,7 +89,9 @@ module SequenceBinner
     end
 
     def paired_end_both_key(parts)
-      "#{parts[@read_end_index]}_#{single_end_both_key(parts)}"
+      single_key = single_end_both_key(parts)
+      return nil if nil == single_key
+      "#{parts[@read_end_index]}_#{single_key}"
     end
     
     def parse_endness_key
@@ -155,6 +163,8 @@ module SequenceBinner
     
     # values is an array of key, input format fields
     def finalize
+      # return if key =~ /_pcr\?/
+      
       best_index = top_quality_index!(values)
       best = values.delete_at(best_index)
       best_sequence = best[@sequence_col]
