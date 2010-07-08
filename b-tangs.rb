@@ -9,6 +9,10 @@ class String
   def phred_quality_score_sum
     self.each_char.inject(0.0) {|sum,char| sum += (char.ord-64)}
   end
+
+  def phred_quality_score_average
+    self.phred_quality_score_sum/self.length
+  end
 end
 
 module SequenceBinner
@@ -175,9 +179,9 @@ module SequenceBinner
       index = 0
       qualities.each_with_index do |qual,i|
         qual.shift
-        sum = qual[@quality_col].phred_quality_score_sum
-        if  sum > max then
-          max = sum
+        avg = qual[@quality_col].phred_quality_score_average
+        if  avg > max then
+          max = avg
           index = i
         end
       end
