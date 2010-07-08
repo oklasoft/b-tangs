@@ -78,9 +78,9 @@ module SequenceBinner
     def single_end_both_key(parts)
       sequence = parts[@sequence_index]
       front = sequence[@key_range]
-      back = (sequence.reverse)[@key_range]
+      back = (sequence.reverse)[@key_range].reverse
       key = "#{front}_#{back}"
-      return nil if front == back
+      return "#{key}_possiblepcr" if front == back
       key
     end
     
@@ -163,7 +163,10 @@ module SequenceBinner
     
     # values is an array of key, input format fields
     def finalize
-      # return if key =~ /_pcr\?/
+      reject_all_but_top = false
+      if key =~ /_possiblepcr/
+        reject_all_but_top = true
+      end
       
       best_index = top_quality_index!(values)
       best = values.delete_at(best_index)
@@ -171,7 +174,7 @@ module SequenceBinner
       yield [ best ]
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
-        if best_sequence == v[@sequence_col] || levenshtein_pattern.similar(v[@sequence_col]) >= @similarity then
+        if reject_all_but_top || levenshtein_pattern.similar(v[@sequence_col]) >= @similarity then
           next
         end
         yield [ v ]
