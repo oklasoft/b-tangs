@@ -40,9 +40,9 @@ module SequenceBinner
       parts = line.chomp.split(/\t/)
       key = line_key(parts)
       return unless key
-      if options[:trim_pcr_quality] && key =~ /_possiblepcr/
-        # trim_ends_by_resetting_quality_score!(parts)
-        trim_ends_by_resetting_reading!(parts)
+      if key =~ /_possiblepcr/
+        trim_ends_by_resetting_quality_score!(parts) if options[:trim_pcr_quality]
+        trim_ends_by_resetting_reading!(parts) if options[:trim_pcr_read]
       end
       yield [key, *parts]
     end
@@ -188,7 +188,7 @@ module SequenceBinner
     def finalize
       reject_all_but_top = false
       if key =~ /_possiblepcr/
-        reject_all_but_top = true unless options[:trim_pcr_quality]
+        reject_all_but_top = true unless (options[:trim_pcr_quality] || options[:trim_pcr_read])
       end
       
       best_index = top_quality_index!(values)
