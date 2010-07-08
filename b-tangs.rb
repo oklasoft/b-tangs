@@ -19,6 +19,8 @@ module SequenceBinner
   QSEQ_QUALITY_INDEX = 9
   QSEQ_READ_END_INDEX = 7
   
+  NO_QUALITY_SCORE = "B"
+  
   class Mapper < Wukong::Streamer::LineStreamer
     
     def initialize(*args)
@@ -37,7 +39,17 @@ module SequenceBinner
       parts = line.chomp.split(/\t/)
       key = line_key(parts)
       return unless key
+      if options[:trim_pcr_quality] && key =~ /_possiblepcr/
+        trim_ends_by_resetting_quality_score!(parts)
+      end
       yield [key, *parts]
+    end
+    
+    def trim_ends_by_resetting_quality_score!(parts)
+      new_quality = NO_QUALITY_SCORE * options[:range_size].to_i
+      parts[@quality_col][@key_range] = new_quality
+      (parts[@quality_col].reverse!)[@key_range] = new_quality
+      parts[@quality_col].reverse!
     end
     
     def sequence_index
@@ -48,8 +60,10 @@ module SequenceBinner
     def parse_format(input_format)
       case input_format
         when /qseq/i
+          @quality_col = SequenceBinner::QSEQ_QUALITY_INDEX
           SequenceBinner::QSEQ_SEQUENCE_INDEX
         when /fasta/i
+          @quality_col = SequenceBinner::FASTA_QUALITY_INDEX
           SequenceBinner::FASTA_SEQUENCE_INDEX
         else
           nil
@@ -164,7 +178,7 @@ module SequenceBinner
     # values is an array of key, input format fields
     def finalize
       reject_all_but_top = false
-      if key =~ /_possiblepcr/
+      if !options[:trim_pcr_quality] && key =~ /_possiblepcr/
         reject_all_but_top = true
       end
       
