@@ -199,6 +199,9 @@ module SequenceBinner
       best = values.delete_at(best_index)
       best_sequence = best[@sequence_col]
       yield [ best ]
+      if 0.0 == @similarity
+        return
+      end
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
         if reject_all_but_top || levenshtein_pattern.similar(v[@sequence_col]) >= @similarity then
