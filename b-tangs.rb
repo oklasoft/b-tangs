@@ -107,7 +107,7 @@ module SequenceBinner
       front = sequence[@key_range]
       back = (sequence.reverse)[@key_range].reverse
       key = "#{front}_#{back}"
-      return "#{key}_possiblepcr" if front == back
+      return "#{key}_possiblepcr" if front == back && options[:possible_pcr]
       key
     end
     
