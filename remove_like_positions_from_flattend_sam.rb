@@ -72,8 +72,15 @@ module RemoveLikePositionsFromFlattenedSAM
     # name bit chr pos seq qual bit chr pos seq qual
     def process line
       parts = line.chomp.split(/\t/)
-      return unless RemoveLikePositionsFromFlattenedSAM.is_mapped(parts[BIT_ONE_IDX].to_i)
-      yield [parts[RemoveLikePositionsFromFlattenedSAM::CHR_ONE_IDX..RemoveLikePositionsFromFlattenedSAM::POS_ONE_IDX].join("_"), *parts]
+      key = nil
+      unless RemoveLikePositionsFromFlattenedSAM.is_mapped(parts[BIT_ONE_IDX].to_i)
+        key = "UNMAPPED"
+        return if options[:remove_unmapped]
+      else
+        key = parts[RemoveLikePositionsFromFlattenedSAM::CHR_ONE_IDX..RemoveLikePositionsFromFlattenedSAM::POS_ONE_IDX].join("_")
+      end
+
+      yield [key, *parts]
     end
 
   end
@@ -87,6 +94,19 @@ module RemoveLikePositionsFromFlattenedSAM
     # values is an array of key (the name), flattened SAM fields
     # values are keyed on same "first" read position
     def finalize
+      STDERR.puts "key is #{key.inspect}"
+      if "UNMAPPED" == key
+        # key of only _ would mean no start & no end, ie unmapped reads, we just pass them on out
+        values.each do |final|
+          yield [
+            # values.size, chunk.size,
+            final[NAME_IDX+1],
+            final[BIT_ONE_IDX+1], final[CHR_ONE_IDX+1], final[POS_ONE_IDX+1], final[SEQ_ONE_IDX+1], final[QUALITY_ONE_IDX+1],
+            final[BIT_TWO_IDX+1], final[CHR_TWO_IDX+1], final[POS_TWO_IDX+1], final[SEQ_TWO_IDX+1], final[QUALITY_TWO_IDX+1]
+          ]          
+        end
+        return
+      end
       # we have the +1 on all the indexes since the values array has the key in the front
       values.group_by { |v| "#{v[RemoveLikePositionsFromFlattenedSAM::CHR_TWO_IDX+1]}_#{v[RemoveLikePositionsFromFlattenedSAM::POS_TWO_IDX+1]}"}.each do |key,chunk|
         # now we have a chunk of reads with all the same first position and all the same second position
