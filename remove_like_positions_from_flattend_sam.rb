@@ -74,7 +74,7 @@ module RemoveLikePositionsFromFlattenedSAM
       parts = line.chomp.split(/\t/)
       key = nil
       unless RemoveLikePositionsFromFlattenedSAM.is_mapped(parts[BIT_ONE_IDX].to_i)
-        key = "UNMAPPED"
+        key = "UNMAPPED_#{rand(options[:reduce_tasks].to_i).to_i}" # for splitting up this otherwise large key to be reduced
         return if options[:remove_unmapped]
       else
         key = parts[RemoveLikePositionsFromFlattenedSAM::CHR_ONE_IDX..RemoveLikePositionsFromFlattenedSAM::POS_ONE_IDX].join("_")
@@ -95,8 +95,8 @@ module RemoveLikePositionsFromFlattenedSAM
     # values are keyed on same "first" read position
     def finalize
       STDERR.puts "key is #{key.inspect}"
-      if "UNMAPPED" == key
-        # key of only _ would mean no start & no end, ie unmapped reads, we just pass them on out
+      if key =~ /^UNMAPPED/
+        # unmapped reads, we just pass them on out
         values.each do |final|
           yield [
             # values.size, chunk.size,
