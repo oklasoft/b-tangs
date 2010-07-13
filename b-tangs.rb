@@ -98,6 +98,13 @@ module SequenceBinner
         raise "Please supply both a --range_start= and --range_size= argument"
     end
     
+    def acgt_averages(seq)
+      sums = {"A" => 0,"C" => 0,"G" => 0,"T" => 0}
+      seq.chars.each {|c| sums[c] += 1 unless "N" == c}
+      sums.each {|l,i| sums[l] = (i/seq.length.to_f*100).floor}
+      sums
+    end
+    
     def single_end_key(parts)
       parts[@sequence_index][@key_range]
     end
@@ -111,6 +118,25 @@ module SequenceBinner
       key
     end
     
+    def acgt_key(parts)
+      sequence = parts[@sequence_index]
+      front = sequence[@key_range]
+      avgs = acgt_averages(front)
+      key = []
+      %w/A C G T/.each {|b| key << "#{b}:#{avgs[b]}"}
+      key.join("_")
+    end
+
+    def acgt_both_ends_key(parts)
+      sequence = parts[@sequence_index]
+      front = sequence[@key_range]
+      back = (sequence.reverse)[@key_range].reverse
+      avgs = acgt_averages(front+back)
+      key = []
+      %w/A C G T/.each {|b| key << "#{b}:#{avgs[b]}"}
+      key.join("_")
+    end
+    
     def paired_end_key(parts)
       "#{parts[@read_end_index]}_#{single_end_key(parts)}"
     end
@@ -122,7 +148,13 @@ module SequenceBinner
     end
     
     def parse_endness_key
-      case options[:end_style]
+      case options[:key_type]
+        when /acgt_avg/i
+          if options[:both_ends] then
+            alias line_key acgt_both_ends_key
+          else
+            alias line_key acgt_key
+          end
         when /paired/i
           read_end_index()
           if options[:both_ends] then
@@ -137,7 +169,7 @@ module SequenceBinner
             alias line_key single_end_key
           end
         else
-          raise "Please specify paired or single with --end_style"
+          raise "Please specify type of key --key_type (paired, single, acgt_avg)"
       end
       @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
         raise "Please supply both a --range_start= and --range_size= argument"
@@ -156,6 +188,13 @@ module SequenceBinner
       super(*args)
       parse_format()
       @similarity ||= (options[:similarity].to_f || 0.90)
+      case options[:key_type]
+        when /acgt_avg/i
+          alias part_for_comparison sequence_tips_for_comparison
+        else
+          alias part_for_comparison all_sequence_for_comparison
+      end
+      key_range()
     end
     
     def parse_format()
@@ -188,28 +227,52 @@ module SequenceBinner
       index
     end
     
+    def key_range
+      @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
+        raise "Please supply both a --range_start= and --range_size= argument"
+    end
+    
+    def parse_key_range(start,length)
+      return nil unless options[:range_start] && options[:range_size]
+      Range.new(start.to_i, start.to_i+length.to_i,true)
+    end
+    
+    
+    def sequence_tips_for_comparison(parts)
+      sequence = parts[@sequence_col]
+      front = sequence[@key_range]
+      back = ""
+      back = (sequence.reverse)[@key_range].reverse if options[:both_ends]
+      front + back
+    end
+    
+    def all_sequence_for_comparison(parts)
+      parts[@sequence_col]
+    end
+    
     # values is an array of key, input format fields
     def finalize
       reject_all_but_top = false
       if key =~ /_possiblepcr/
         reject_all_but_top = true unless (options[:trim_pcr_quality] || options[:trim_pcr_read])
       end
-      
+
       best_index = top_quality_index!(values)
       best = values.delete_at(best_index)
-      best_sequence = best[@sequence_col]
+      best_sequence = part_for_comparison(best)
+      
       yield [ best ]
       if 0.0 == @similarity
         return
       end
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
-        if reject_all_but_top || levenshtein_pattern.similar(v[@sequence_col]) >= @similarity then
+        if reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
           next
-        end
+        end        
         yield [ v ]
       end #values
-      
+
     end #finalize
     
   end #reducer
