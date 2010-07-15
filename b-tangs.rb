@@ -100,7 +100,7 @@ module SequenceBinner
     
     def acgt_averages(seq)
       sums = {"A" => 0,"C" => 0,"G" => 0,"T" => 0}
-      seq.chars.each {|c| sums[c] += 1 unless "N" == c}
+      seq.chars.each {|c| sums[c] += 1 sums.keys.include?(c)}
       sums.each {|l,i| sums[l] = (i/seq.length.to_f*100).floor}
       sums
     end
