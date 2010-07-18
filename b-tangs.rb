@@ -104,9 +104,23 @@ module SequenceBinner
       sums.each {|l,i| sums[l] = (i/seq.length.to_f*100).floor}
       sums
     end
-    
+
+    def compress(term)
+      Zlib::Deflate.deflate(term.strip.downcase)
+    end
+
+    def zlib_key(term)
+      n = "N" * term.size
+      key = (compress(n+term).size - compress(n).size)/term.size.to_f
+      (key * 100).to_i
+    end
+
     def single_end_key(parts)
       parts[@sequence_index][@key_range]
+    end
+    
+    def single_end_zlib_key(parts)
+      zlib_key(parts[@sequence_index][@key_range])
     end
     
     def single_end_both_key(parts)
@@ -167,6 +181,13 @@ module SequenceBinner
             alias line_key single_end_both_key
           else
             alias line_key single_end_key
+          end
+        when /zlib/i
+          require 'zlib'
+          if options[:both_ends] then
+            alias line_key single_end_zlib_both_key
+          else
+            alias line_key single_end_zlib_key
           end
         else
           raise "Please specify type of key --key_type (paired, single, acgt_avg)"
