@@ -77,14 +77,14 @@ module FlattenedSAMToFastq
   POS_ONE_IDX = 3
   SEQ_ONE_IDX = 4
   QUALITY_ONE_IDX = 5
-  FIRST = [BIT_ONE_IDX,SEQ_ONE_IDX,QUALITY_ONE_IDX]
+  FIRST = [BIT_ONE_IDX,SEQ_ONE_IDX,QUALITY_ONE_IDX, CHR_ONE_IDX, POS_ONE_IDX]
 
   BIT_TWO_IDX = 6
   CHR_TWO_IDX = 7
   POS_TWO_IDX = 8
   SEQ_TWO_IDX = 9
   QUALITY_TWO_IDX = 10
-  SECOND = [BIT_TWO_IDX,SEQ_TWO_IDX,QUALITY_TWO_IDX]
+  SECOND = [BIT_TWO_IDX,SEQ_TWO_IDX,QUALITY_TWO_IDX, CHR_TWO_IDX,POS_TWO_IDX]
   
   class Mapper < Wukong::Streamer::LineStreamer
     
@@ -98,7 +98,10 @@ module FlattenedSAMToFastq
     def process line
       parts = line.chomp.split(/\t/)
       order = [FIRST, SECOND]
-      order.reverse! if FlattenedSAMToFastq.is_second_read(parts[BIT_ONE_IDX].to_i)
+
+      if FlattenedSAMToFastq.is_second_read(parts[BIT_ONE_IDX].to_i)
+        order.reverse!
+      end
       res = [ parts[0] ]
       order.each do |fields|
         seq = parts[fields[1]]
@@ -109,6 +112,10 @@ module FlattenedSAMToFastq
           quality.reverse!
         end
         res += [seq, quality]
+        if options[:annotations]
+          # add the right bit flag, chr & pos
+          res += [parts[fields[0]], parts[fields[3]], parts[fields[4]]]
+        end
       end
       yield res
     end
