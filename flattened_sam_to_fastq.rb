@@ -3,8 +3,8 @@ require 'wukong'
 
 class String
   def complement
-    self.each_char.inject('') do |accum,char| 
-      accum += case char
+    self.each_char.inject('') do |accum,c| 
+      accum += case c
         when 'A'
           'T'
         when 'C'
@@ -14,7 +14,7 @@ class String
         when 'T'
           'A'
         else
-          chr
+          c
       end
     end
   end
