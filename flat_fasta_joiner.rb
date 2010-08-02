@@ -22,6 +22,9 @@ module FlatFastaJoiner
     # values is an array of key, fields (name read name quality number)
     def finalize
       return unless 2 == values.size
+      return if options[:both_must_pass] && (values[0][5] != 'PASS' || values[1][5] != 'PASS')
+      return if (values[0][5] != 'PASS' && values[1][5] != 'PASS')
+      
       values.sort! {|a,b| a[4].to_i <=> b[4].to_i}
       yield [ values[0] ]
       yield [ values[1] ]
