@@ -284,7 +284,8 @@ module SequenceBinner
       
       yield [ best + ["PASS"] ]
       if 0.0 == @similarity
-        return
+        reject_all_but_top = true
+        # return
       end
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
