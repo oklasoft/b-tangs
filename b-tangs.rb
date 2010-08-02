@@ -282,16 +282,17 @@ module SequenceBinner
       best = values.delete_at(best_index)
       best_sequence = part_for_comparison(best)
       
-      yield [ best ]
+      yield [ best + ["PASS"] ]
       if 0.0 == @similarity
         return
       end
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
         if reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
+          yield [ v + ["REJECT #{best[0]}"]]
           next
         end        
-        yield [ v ]
+        yield [ v + ["PASS"] ]
       end #values
 
     end #finalize
