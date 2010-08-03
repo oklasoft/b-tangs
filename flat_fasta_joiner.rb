@@ -28,7 +28,7 @@ module FlatFastaJoiner
       values.sort! {|a,b| a[5].to_i <=> b[5].to_i}
 
       if options[:single_line]
-        values.each {|v| v.pop}
+        values.each {|v| v.shift}
         yield [ values ]
       else
         yield [ values[0] ]
