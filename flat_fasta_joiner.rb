@@ -26,8 +26,14 @@ module FlatFastaJoiner
       return if (!options[:allow_both_fail]) && (values[0][6] != 'PASS' && values[1][6] != 'PASS')
 
       values.sort! {|a,b| a[5].to_i <=> b[5].to_i}
-      yield [ values[0] ]
-      yield [ values[1] ]
+
+      if options[:single_line]
+        values.each {|v| v.pop}
+        yield [ values ]
+      else
+        yield [ values[0] ]
+        yield [ values[1] ]
+      end
     end #finalize
     
   end #reducer
