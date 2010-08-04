@@ -32,7 +32,7 @@ module FlatFastaJoiner
         yield [ values ]
       else
         yield [ values[0] ]
-        yield [ values[1] ]
+        yield [ values[1] ] unless options[:first_only]
       end
     end #finalize
     
