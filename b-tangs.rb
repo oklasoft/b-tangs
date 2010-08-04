@@ -41,7 +41,7 @@ module SequenceBinner
     
     def initialize(*args)
       super(*args)
-      if "joined_pairs" == options[:key_type] && !("joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format])
+      if ("joined_pairs" == options[:key_type] || "sep_joined_pairs" == options[:key_type]) && !("joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format])
         raise "joined pairs must be used with joined_fastq or joined_qseq file format"
       end
       sequence_index()
@@ -62,7 +62,13 @@ module SequenceBinner
         trim_ends_by_resetting_quality_score!(parts) if options[:trim_pcr_quality]
         trim_ends_by_resetting_reading!(parts) if options[:trim_pcr_read]
       end
-      yield [key, *parts]
+      if key.kind_of?(Array)
+        key.each do |k|
+          yield [k, *parts]
+        end
+      else
+        yield [key, *parts]
+      end
     end
     
     def trim_ends_by_resetting_quality_score!(parts)
@@ -195,6 +201,15 @@ module SequenceBinner
       return key.join("_")
     end
     
+    def single_end_joined_pairs_both_key(parts)
+      key = []
+      @sequence_index.each_with_index do |seq_index, read_no|
+        sequence = parts[seq_index]
+        key << "#{sequence[@key_range]}_#{(sequence.reverse)[@key_range].reverse}"
+      end
+      return key
+    end
+    
     def parse_endness_key
       case options[:key_type]
         when /acgt_avg/i
@@ -209,6 +224,13 @@ module SequenceBinner
             alias line_key paired_end_both_key
           else
             alias line_key paired_end_key
+          end
+        when /sep_joined_pairs/i
+          read_end_index()
+          if options[:both_ends] then
+            alias line_key single_end_joined_pairs_both_key
+          else
+            alias line_key joined_pairs_single_end_key
           end
         when /joined_pairs/i
           read_end_index()
@@ -343,6 +365,8 @@ module SequenceBinner
       if key =~ /_possiblepcr/
         reject_all_but_top = true unless (options[:trim_pcr_quality] || options[:trim_pcr_read])
       end
+      
+      values.sort! {|a,b| part_for_comparison(a) <=> part_for_comparison(b)}
 
       best_index = top_quality_index!(values)
       best = values.delete_at(best_index)
