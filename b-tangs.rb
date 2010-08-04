@@ -28,6 +28,12 @@ module SequenceBinner
   JOINED_FASTA_READ_END_INDEX = 4
   JOINED_FASTA_SECOND_OFFSET = 5
   
+  JOINED_QSEQ_SEQUENCE_INDEX = 8
+  JOINED_QSEQ_QUALITY_INDEX = 9
+  JOINED_QSEQ_READ_END_INDEX = 7
+  JOINED_QSEQ_SECOND_OFFSET = 11
+  
+  
   NO_QUALITY_SCORE = "B"
   NO_READ = "N"
   
@@ -35,7 +41,9 @@ module SequenceBinner
     
     def initialize(*args)
       super(*args)
-      options[:key_type] = "joined_fastq" if "joined_fastq" == options[:input_format]
+      if "joined_pairs" == options[:key_type] && !("joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format])
+        raise "joined pairs must be used with joined_fastq or joined_qseq file format"
+      end
       sequence_index()
       key_range()
       parse_endness_key()
@@ -78,15 +86,18 @@ module SequenceBinner
     
     def parse_format(input_format)
       case input_format
+        when /joined_qseq/i
+          @quality_col = [SequenceBinner::JOINED_QSEQ_QUALITY_INDEX, SequenceBinner::JOINED_QSEQ_QUALITY_INDEX + SequenceBinner::JOINED_QSEQ_SECOND_OFFSET]
+          [SequenceBinner::JOINED_QSEQ_SEQUENCE_INDEX, SequenceBinner::JOINED_QSEQ_SEQUENCE_INDEX + SequenceBinner::JOINED_QSEQ_SECOND_OFFSET]
+        when /joined_fastq/i
+          @quality_col = [ SequenceBinner::JOINED_FASTA_QUALITY_INDEX, SequenceBinner::JOINED_FASTA_QUALITY_INDEX+SequenceBinner::JOINED_FASTA_SECOND_OFFSET ]
+          [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX+SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
         when /qseq/i
           @quality_col = SequenceBinner::QSEQ_QUALITY_INDEX
           SequenceBinner::QSEQ_SEQUENCE_INDEX
         when /fasta/i
           @quality_col = SequenceBinner::FASTA_QUALITY_INDEX
           SequenceBinner::FASTA_SEQUENCE_INDEX
-        when /joined_fastq/i
-          @quality_col = [ SequenceBinner::JOINED_FASTA_QUALITY_INDEX, SequenceBinner::JOINED_FASTA_QUALITY_INDEX+SequenceBinner::JOINED_FASTA_SECOND_OFFSET ]
-          [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX+SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
         else
           nil
       end
@@ -101,6 +112,8 @@ module SequenceBinner
           SequenceBinner::FASTA_READ_END_INDEX
         when [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX+SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
           [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX + SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
+        when [SequenceBinner::JOINED_QSEQ_SEQUENCE_INDEX, SequenceBinner::JOINED_QSEQ_SEQUENCE_INDEX+SequenceBinner::JOINED_QSEQ_SECOND_OFFSET]
+          [SequenceBinner::JOINED_QSEQ_SEQUENCE_INDEX, SequenceBinner::JOINED_QSEQ_SEQUENCE_INDEX + SequenceBinner::JOINED_QSEQ_SECOND_OFFSET]
       end
     end
     
@@ -172,7 +185,7 @@ module SequenceBinner
       "#{parts[@read_end_index]}_#{single_key}"
     end
     
-    def joined_fastq_single_end_both_key(parts)
+    def joined_pairs_both_key(parts)
       key = []
       @sequence_index.each_with_index do |seq_index, read_no|
         sequence = parts[seq_index]
@@ -197,12 +210,12 @@ module SequenceBinner
           else
             alias line_key paired_end_key
           end
-        when /joined_fastq/i
+        when /joined_pairs/i
           read_end_index()
           if options[:both_ends] then
-            alias line_key joined_fastq_single_end_both_key
+            alias line_key joined_pairs_both_key
           else
-            alias line_key joined_fastq_single_end_key
+            alias line_key joined_pairs_single_end_key
           end
         when /single/i
           if options[:both_ends] then
@@ -241,7 +254,7 @@ module SequenceBinner
         when /acgt_avg/i
           alias part_for_comparison sequence_tips_for_comparison
         else
-          if "joined_fastq" == options[:input_format] 
+          if "joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format]
             alias part_for_comparison all_sequence_for_comparison_pair
           else
             alias part_for_comparison all_sequence_for_comparison
@@ -253,16 +266,20 @@ module SequenceBinner
     def parse_format()
       alias quality_for_read quality_for_read_single
       case options[:input_format]
+        when /joined_fastq/i
+          @sequence_col = [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX + SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
+          @quality_col = [SequenceBinner::JOINED_FASTA_QUALITY_INDEX, SequenceBinner::JOINED_FASTA_QUALITY_INDEX + SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
+          alias quality_for_read quality_for_read_pair
+        when /joined_qseq/i
+          @sequence_col = [SequenceBinner::JOINED_QSEQ_SEQUENCE_INDEX, SequenceBinner::JOINED_QSEQ_SEQUENCE_INDEX + SequenceBinner::JOINED_QSEQ_SECOND_OFFSET]
+          @quality_col = [SequenceBinner::JOINED_QSEQ_QUALITY_INDEX, SequenceBinner::JOINED_QSEQ_QUALITY_INDEX + SequenceBinner::JOINED_QSEQ_SECOND_OFFSET]
+          alias quality_for_read quality_for_read_pair
         when /qseq/i
           @sequence_col = SequenceBinner::QSEQ_SEQUENCE_INDEX
           @quality_col = SequenceBinner::QSEQ_QUALITY_INDEX
         when /fasta/i
           @sequence_col = SequenceBinner::FASTA_SEQUENCE_INDEX
           @quality_col = SequenceBinner::FASTA_QUALITY_INDEX
-        when /joined_fastq/i
-          @sequence_col = [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX + SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
-          @quality_col = [SequenceBinner::JOINED_FASTA_QUALITY_INDEX, SequenceBinner::JOINED_FASTA_QUALITY_INDEX + SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
-          alias quality_for_read quality_for_read_pair
         else
           raise "Please let us know the input file format with --input_format= argument"
       end
@@ -339,7 +356,7 @@ module SequenceBinner
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
         if reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
-          yield [ v + ["REJECT #{best[0]}"]]
+          yield [ v + ["REJECT #{best[0]}"]] if options[:include_rejects]
           next
         end        
         yield [ v + ["PASS"] ]
