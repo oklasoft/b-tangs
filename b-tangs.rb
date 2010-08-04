@@ -23,6 +23,11 @@ module SequenceBinner
   QSEQ_QUALITY_INDEX = 9
   QSEQ_READ_END_INDEX = 7
   
+  JOINED_FASTA_SEQUENCE_INDEX = 1
+  JOINED_FASTA_QUALITY_INDEX = 3
+  JOINED_FASTA_READ_END_INDEX = 4
+  JOINED_FASTA_SECOND_OFFSET = 5
+  
   NO_QUALITY_SCORE = "B"
   NO_READ = "N"
   
@@ -30,6 +35,7 @@ module SequenceBinner
     
     def initialize(*args)
       super(*args)
+      options[:key_type] = "joined_fastq" if "joined_fastq" == options[:input_format]
       sequence_index()
       key_range()
       parse_endness_key()
@@ -78,6 +84,9 @@ module SequenceBinner
         when /fasta/i
           @quality_col = SequenceBinner::FASTA_QUALITY_INDEX
           SequenceBinner::FASTA_SEQUENCE_INDEX
+        when /joined_fastq/i
+          @quality_col = [ SequenceBinner::JOINED_FASTA_QUALITY_INDEX, SequenceBinner::JOINED_FASTA_QUALITY_INDEX+SequenceBinner::JOINED_FASTA_SECOND_OFFSET ]
+          [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX+SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
         else
           nil
       end
@@ -90,6 +99,8 @@ module SequenceBinner
           SequenceBinner::QSEQ_READ_END_INDEX
         when SequenceBinner::FASTA_SEQUENCE_INDEX
           SequenceBinner::FASTA_READ_END_INDEX
+        when [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX+SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
+          [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX + SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
       end
     end
     
@@ -161,6 +172,16 @@ module SequenceBinner
       "#{parts[@read_end_index]}_#{single_key}"
     end
     
+    def joined_fastq_single_end_both_key(parts)
+      key = []
+      @sequence_index.each_with_index do |seq_index, read_no|
+        sequence = parts[seq_index]
+        key << sequence[@key_range]
+        key << (sequence.reverse)[@key_range].reverse
+      end
+      return key.join("_")
+    end
+    
     def parse_endness_key
       case options[:key_type]
         when /acgt_avg/i
@@ -175,6 +196,13 @@ module SequenceBinner
             alias line_key paired_end_both_key
           else
             alias line_key paired_end_key
+          end
+        when /joined_fastq/i
+          read_end_index()
+          if options[:both_ends] then
+            alias line_key joined_fastq_single_end_both_key
+          else
+            alias line_key joined_fastq_single_end_key
           end
         when /single/i
           if options[:both_ends] then
@@ -213,12 +241,17 @@ module SequenceBinner
         when /acgt_avg/i
           alias part_for_comparison sequence_tips_for_comparison
         else
-          alias part_for_comparison all_sequence_for_comparison
+          if "joined_fastq" == options[:input_format] 
+            alias part_for_comparison all_sequence_for_comparison_pair
+          else
+            alias part_for_comparison all_sequence_for_comparison
+          end
       end
       key_range()
     end
     
     def parse_format()
+      alias quality_for_read quality_for_read_single
       case options[:input_format]
         when /qseq/i
           @sequence_col = SequenceBinner::QSEQ_SEQUENCE_INDEX
@@ -226,9 +259,21 @@ module SequenceBinner
         when /fasta/i
           @sequence_col = SequenceBinner::FASTA_SEQUENCE_INDEX
           @quality_col = SequenceBinner::FASTA_QUALITY_INDEX
+        when /joined_fastq/i
+          @sequence_col = [SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX, SequenceBinner::JOINED_FASTA_SEQUENCE_INDEX + SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
+          @quality_col = [SequenceBinner::JOINED_FASTA_QUALITY_INDEX, SequenceBinner::JOINED_FASTA_QUALITY_INDEX + SequenceBinner::JOINED_FASTA_SECOND_OFFSET]
+          alias quality_for_read quality_for_read_pair
         else
           raise "Please let us know the input file format with --input_format= argument"
       end
+    end
+    
+    def quality_for_read_single(read)
+      read[@quality_col]
+    end
+
+    def quality_for_read_pair(read)
+      @quality_col.map {|q| read[q]}.join("")
     end
 
     # find the best score in this set
@@ -239,7 +284,7 @@ module SequenceBinner
       index = 0
       qualities.each_with_index do |qual,i|
         qual.shift
-        avg = qual[@quality_col].phred_quality_score_average
+        avg = quality_for_read(qual).phred_quality_score_average
         if  avg > max then
           max = avg
           index = i
@@ -269,6 +314,10 @@ module SequenceBinner
     
     def all_sequence_for_comparison(parts)
       parts[@sequence_col]
+    end
+    
+    def all_sequence_for_comparison_pair(parts)
+      @sequence_col.map {|sc| parts[sc]}.join("")
     end
     
     # values is an array of key, input format fields
