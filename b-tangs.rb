@@ -359,6 +359,23 @@ module SequenceBinner
       @sequence_col.map {|sc| parts[sc]}.join("")
     end
     
+    def joined_pairs_both_key(parts)
+      key = []
+      @sequence_col.each_with_index do |seq_index, read_no|
+        sequence = parts[seq_index]
+        key << sequence[@key_range]
+        key << (sequence.reverse)[@key_range].reverse
+      end
+      key
+    end
+    
+    def matches_best(read,best)
+      compare_keys = joined_pairs_both_key(read)
+      
+      return (best[0] == compare_keys[0] && best[1] == compare_keys[1]) ||
+             (best[1] == compare_keys[0] && best[0] == compare_keys[1])
+    end
+    
     # values is an array of key, input format fields
     def finalize
       reject_all_but_top = false
@@ -372,6 +389,8 @@ module SequenceBinner
       best = values.delete_at(best_index)
       best_sequence = part_for_comparison(best)
       
+      best_keys = joined_pairs_both_key(best)
+      
       yield [ best + ["PASS"] ]
       if 0.0 == @similarity
         reject_all_but_top = true
@@ -379,7 +398,7 @@ module SequenceBinner
       end
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
-        if reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
+        if matches_best(v,best) || reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
           yield [ v + ["REJECT #{best[0]}"]] if options[:include_rejects]
           next
         end        
