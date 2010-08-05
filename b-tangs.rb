@@ -372,8 +372,14 @@ module SequenceBinner
     def matches_best(read,best)
       compare_keys = joined_pairs_both_key(read)
       
-      return (best[0] == compare_keys[0] && best[1] == compare_keys[1]) ||
-             (best[1] == compare_keys[0] && best[0] == compare_keys[1])
+      return ( # A1+A2 == B1+B2
+               best[0] == compare_keys[0] && best[1] == compare_keys[1] &&
+               best[2] == compare_keys[2] && best[3] == compare_keys[3]
+             ) ||
+             ( # A1+A2 == B2+B1
+               best[0] == compare_keys[2] && best[1] == compare_keys[3] &&
+               best[2] == compare_keys[0] && best[3] == compare_keys[1]
+             )
     end
     
     # values is an array of key, input format fields
