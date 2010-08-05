@@ -404,7 +404,7 @@ module SequenceBinner
       end
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
       values.each do |v|
-        if matches_best(v,best) || reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
+        if matches_best(v,best_keys) || reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
           yield [ v + ["REJECT #{best[0]}"]] if options[:include_rejects]
           next
         end        
