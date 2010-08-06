@@ -56,6 +56,7 @@ module SequenceBinner
     #
     def process line
       parts = line.chomp.split(/\t/)
+
       key = line_key(parts)
       return unless key
       if key =~ /_possiblepcr/
@@ -382,6 +383,15 @@ module SequenceBinner
              )
     end
     
+    def name_for(read)
+      case options[:input_format]
+        when /fast/i
+          read[0]
+        when /qseq/i
+          read[0..6].join("_")
+      end
+    end
+    
     # values is an array of key, input format fields
     def finalize
       reject_all_but_top = false
@@ -390,6 +400,8 @@ module SequenceBinner
       end
       
       values.sort! {|a,b| part_for_comparison(a) <=> part_for_comparison(b)}
+      
+      h_key = values.first.first
 
       best_index = top_quality_index!(values)
       best = values.delete_at(best_index)
@@ -397,19 +409,27 @@ module SequenceBinner
       
       best_keys = joined_pairs_both_key(best)
       
-      yield [ best + ["PASS"] ]
       if 0.0 == @similarity
         reject_all_but_top = true
         # return
       end
       levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
+      best_for = 0
       values.each do |v|
         if matches_best(v,best_keys) || reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
-          yield [ v + ["REJECT #{best[0]}"]] if options[:include_rejects]
+          yield [ v + ["REJECT"] + [name_for(best)]] if options[:include_rejects]
+          best_for += 1
           next
         end        
-        yield [ v + ["PASS"] ]
+        yield [ v + ["PASS_DIDNT_MATCH"] + [name_for(best)] ]
       end #values
+      
+      best_msg = if best_for > 0 then
+        ["PASS_BEST_FOR"] + [best_for]
+      else
+        ["PASS_ONLY","ALONE"]
+      end
+      yield [ best + best_msg ]
 
     end #finalize
     
