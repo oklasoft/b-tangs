@@ -399,7 +399,11 @@ module SequenceBinner
         reject_all_but_top = true unless (options[:trim_pcr_quality] || options[:trim_pcr_read])
       end
       
-      values.sort! {|a,b| part_for_comparison(a) <=> part_for_comparison(b)}
+      values.sort! do |a,b| 
+        s = part_for_comparison(a) <=> part_for_comparison(b)
+        return name_for(a) <=> name_for(b) if 0 == s
+        return s
+      end
       
       h_key = values.first.first
 
