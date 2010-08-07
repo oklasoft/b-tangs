@@ -400,8 +400,8 @@ module SequenceBinner
       end
       
       values.sort! do |a,b| 
-        s = part_for_comparison(a) <=> part_for_comparison(b)
-        return name_for(a) <=> name_for(b) if 0 == s
+        s = name_for(a) <=> name_for(b)
+        return part_for_comparison(a) <=> part_for_comparison(b) if 0 == s
         return s
       end
       
