@@ -95,3 +95,21 @@ I, [2009-12-20T08:48:39.205422 #23758]  INFO -- : Streaming on:
 
 ruby1.9 ~/tmp/test/wukon_bin_2.rb --run=local ./intermediate.txt   453.20s user 41.83s system 53% cpu 15:17.42 total
 Sun Dec 20 09:03:56 CST 2009
+
+
+3 jobs nodes & 2 data nodes
+
+qseq_join (only 1 reducer)
+Started at: Fri Aug 06 15:59:06 CDT 2010
+Finished at: Fri Aug 06 16:11:11 CDT 2010
+Finished in: 12mins, 4sec
+
+b-tangs (16 reducers)
+Started at: Fri Aug 06 22:43:50 CDT 2010
+Finished at: Fri Aug 06 22:54:44 CDT 2010
+Finished in: 10mins, 53sec
+
+finalizer (16 reducers)
+Started at: Fri Aug 06 22:56:27 CDT 2010
+Finished at: Fri Aug 06 23:03:22 CDT 2010
+Finished in: 6mins, 54sec
