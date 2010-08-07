@@ -317,13 +317,10 @@ module SequenceBinner
     end
 
     # find the best score in this set
-    # ALSO we shift off the first element of each value array, thus removing
-    # the key column from all, so our indexes picked above actually work
-    def top_quality_index!(qualities)
+    def top_quality_index(qualities)
       max = -100.0
       index = 0
       qualities.each_with_index do |qual,i|
-        qual.shift
         avg = quality_for_read(qual).phred_quality_score_average
         if  avg > max then
           max = avg
@@ -394,6 +391,9 @@ module SequenceBinner
     
     # values is an array of key, input format fields
     def finalize
+      # strip the first element, since is the key
+      values.map {|v| v.shift }
+      
       reject_all_but_top = false
       if key =~ /_possiblepcr/
         reject_all_but_top = true unless (options[:trim_pcr_quality] || options[:trim_pcr_read])
@@ -407,7 +407,7 @@ module SequenceBinner
       
       h_key = values.first.first
 
-      best_index = top_quality_index!(values)
+      best_index = top_quality_index(values)
       best = values.delete_at(best_index)
       best_sequence = part_for_comparison(best)
       
