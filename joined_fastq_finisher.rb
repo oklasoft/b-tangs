@@ -54,7 +54,7 @@ module JoinedFastqFinisher
       if statii.include?("PASS_BEST_FOR") && statii.include?("REJECT") then
         # we were the best & we were rejected!
         read_pair = values.first
-        read_pair[STATUS_INDEX] = "CONFLICT_PR"
+        read_pair[STATUS_INDEX] = "CONFLICT_BR"
         read_pair[STATUS_DETAILS_INDEX] += values[1][STATUS_DETAILS_INDEX]
 
         read_pair.shift # get rid of the key
