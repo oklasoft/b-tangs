@@ -26,7 +26,7 @@ module QseqJoiner
       
       values.sort! {|a,b| a[8].to_i <=> b[8].to_i}
       if options[:single_line]
-        values.each {|v| v.shift}
+        values.each {|v| v.shift} unless options[:keep_key]
         yield [ values ]
       else
         yield [ values[0][1..7], values[0][8..11], values[1][8..11] ]
