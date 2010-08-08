@@ -61,15 +61,20 @@ module JoinedFastqFinisher
       
       if statii.include?("PASS_BEST_FOR") && statii.include?("REJECT") then
         # we were the best & we were rejected!
+        rejected = values.detect {|v| "REJECT" == v[STATUS_INDEX] }
         read_pair = values.first
-        read_pair[STATUS_INDEX] = "CONFLICT_BR"
-        read_pair[STATUS_DETAILS_INDEX] += values[1][STATUS_DETAILS_INDEX]
-
+        if rejected.last == read_pair.first # the winner of the reject is this same one?!?!
+          read_pair[STATUS_INDEX] = "PASS_SELF"
+        else
+          read_pair[STATUS_INDEX] = "CONFLICT_BR"
+          read_pair[STATUS_DETAILS_INDEX] += values[1][STATUS_DETAILS_INDEX]
+        end
         read_pair.shift # get rid of the key
         yield [ read_pair ]
         return
       end
       
+      yield [ values, 'DIDNT_YIELD' ] 
     end #finalize
     
   end #reducer
