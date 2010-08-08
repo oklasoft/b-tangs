@@ -47,6 +47,14 @@ module JoinedQseqFinisher
         return
       end
       
+      if statii.include?("PASS_DIDNT_MATCH") && statii.include?("REJECT") then
+        # we were didn't match the one, but rejected the other, we REJECT overall
+        read_pair = values.detect {|v| "REJECT" == v[STATUS_INDEX] }
+        read_pair.shift # get rid of the key
+        yield [ read_pair ]
+        return
+      end      
+      
       if statii.include?("PASS_BEST_FOR") && statii.include?("REJECT") then
         # we were the best & we were rejected!
         read_pair = values.first
@@ -55,6 +63,7 @@ module JoinedQseqFinisher
 
         read_pair.shift # get rid of the key
         yield [ read_pair ]
+        return
       end
       
     end #finalize
