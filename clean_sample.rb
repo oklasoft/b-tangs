@@ -1,4 +1,18 @@
 #!/usr/bin/env ruby1.9
+#
+# clean_sample.rb
+#
+# Created by Stuart Glenn on 2010-08-08
+# Copyright (c) 2010 Stuart Glenn, Oklahoma Medical Research Foundation. All rights reserved.
+#
+# =Description
+# A quick wrapper script for all the steps to run a NGS illumina sample through
+# the 'b-tangs' cleaning process to remove possible PCR artifacts
+#
+
+require 'rubygems'
+require 'optparse'
+require 'ostruct'
 
 class Logger
   def initialize(*opts)
@@ -75,6 +89,9 @@ class LoggedExternalCommand
     end        
   end
 end
+
+
+
 
 my_log = FstreamLogger.new(STDOUT,STDERR)
 my_log.extend TimeDecorator
