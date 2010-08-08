@@ -5,7 +5,7 @@ require 'yaml'
 def cmd_or_exit(cmd)
   puts cmd
   system cmd
-  exit -1 unless 0 == $?  
+  exit -1 unless 0 == $?.exitstatus
 end
 
 lanes = YAML.load_file(ARGV.first)
