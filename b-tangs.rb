@@ -394,15 +394,18 @@ module SequenceBinner
       # strip the first element, since is the key
       values.map {|v| v.shift }
       
-      reject_all_but_top = false
-      if key =~ /_possiblepcr/
-        reject_all_but_top = true unless (options[:trim_pcr_quality] || options[:trim_pcr_read])
-      end
+      # reject_all_but_top = false
+      # if key =~ /_possiblepcr/
+      #   reject_all_but_top = true unless (options[:trim_pcr_quality] || options[:trim_pcr_read])
+      # end
       
       values.sort! do |a,b| 
         s = name_for(a) <=> name_for(b)
-        return part_for_comparison(a) <=> part_for_comparison(b) if 0 == s
-        return s
+        if 0 == s
+          part_for_comparison(a) <=> part_for_comparison(b)
+        else
+          s
+        end
       end
       
       h_key = values.first.first
@@ -412,24 +415,26 @@ module SequenceBinner
       best_sequence = part_for_comparison(best)
       
       best_keys = joined_pairs_both_key(best)
+      best_name = name_for(best)
       
-      if 0.0 == @similarity
-        reject_all_but_top = true
-        # return
-      end
-      levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
+      # if 0.0 == @similarity
+      #   reject_all_but_top = true
+      #   # return
+      # end
+      # levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
+
       best_for = 0
       values.each do |v|
-        if matches_best(v,best_keys) || reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
-          yield [ v + ["REJECT"] + [name_for(best)]] if options[:include_rejects]
+        if matches_best(v,best_keys) #|| reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
+          yield [ v, "REJECT", best_name] if options[:include_rejects]
           best_for += 1
-          next
-        end        
-        yield [ v + ["PASS_DIDNT_MATCH"] + [name_for(best)] ]
+        else   
+          yield [ v, "PASS_DIDNT_MATCH", best_name ]
+        end
       end #values
       
       best_msg = if best_for > 0 then
-        ["PASS_BEST_FOR"] + [best_for]
+        ["PASS_BEST_FOR", best_for]
       else
         ["PASS_ONLY","ALONE"]
       end
