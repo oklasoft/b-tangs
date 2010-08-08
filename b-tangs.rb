@@ -1,4 +1,7 @@
 #!/usr/bin/ruby1.9
+
+# Binning Trimmer of Artifacts in Next Gen Sequence
+
 require 'wukong'
 require 'amatch'
 
@@ -383,7 +386,7 @@ module SequenceBinner
     def name_for(read)
       case options[:input_format]
         when /fast/i
-          read[0]
+          read[0].split(/\//).first #strip of the end /read_number
         when /qseq/i
           read[0..6].join("_")
       end

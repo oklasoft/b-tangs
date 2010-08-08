@@ -63,7 +63,7 @@ module JoinedFastqFinisher
         # we were the best & we were rejected!
         rejected = values.detect {|v| "REJECT" == v[STATUS_INDEX] }
         read_pair = values.first
-        if rejected.last == read_pair.first # the winner of the reject is this same one?!?!
+        if rejected.last == read_pair.first.split(/\//).first # the winner of the reject is this same one?!?!
           read_pair[STATUS_INDEX] = "PASS_SELF"
         else
           read_pair[STATUS_INDEX] = "CONFLICT_BR"
