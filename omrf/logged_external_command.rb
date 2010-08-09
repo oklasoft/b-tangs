@@ -29,8 +29,8 @@ class LoggedExternalCommand
       
       [out,err].each { |t| t.join}
     end
-    @exitstatus = status.exitstatus
-    return 0 == @exitstatus
+    @exit_status = status.exitstatus
+    return 0 == @exit_status
   end
   
   def non_blocking_read_to_log(input,type)
