@@ -250,7 +250,11 @@ class SampleCleanerApp
   end
   
   def put_input_sequnce_into_hadoop()
-    return "hadoop fs -put *.txt 100423/run_41/ACCT_3/input/"
+    files = @options.input_files.join(" ")
+    cmd = "hadoop fs -put #{files} #{base_hadoop_path()}/"
+    wrap_command(cmd) do
+      output_user("Putting #{files} into hadoop")
+    end
   end
   
   def join_reads_in_hadoop()
