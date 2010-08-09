@@ -303,7 +303,7 @@ class SampleCleanerApp
     elsif :fastq == @options.sequence_format
       "joined_fastq"
     end
-    cmd += "#{hadoop_joined_dir} #{hadoop_cleaned_dir}"
+    cmd += " #{hadoop_joined_dir} #{hadoop_cleaned_dir}"
     wrap_command(cmd) do
       output_user("Cleaning the joined_reads with b-tangs")
     end
