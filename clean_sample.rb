@@ -148,7 +148,7 @@ class SampleCleanerApp
   
   def get_raw_input_sequence
     # TODO check compression?
-    return "lzop -dc 100423/Raw\ data/sorted\ sequence/100423_ACTTs_3_1_sequence.txt.lzo |tr '\r' '' > /tmp/b_tangs_cleaning/100423_ACTTs_3_1_sequence.txt"
+    return "lzop -dc 100423/Raw\ data/sorted\ sequence/100423_ACTTs_3_1_sequence.txt.lzo |tr '\\r' '' > /tmp/b_tangs_cleaning/100423_ACTTs_3_1_sequence.txt"
   end
   
   def detect_sequence_type()
@@ -156,7 +156,7 @@ class SampleCleanerApp
   end
   
   def flatten_fastq()
-    return "awk '{printf( \"%s%s\", $0, (NR%4 ? "\t" : \"\t1\n\") ) }' 100423_ACTTs_3_1_sequence.txt > 1_flat.txt"
+    return "awk '{printf( \"%s%s\", $0, (NR%4 ? \"\t\" : \"\t1\n\") ) }' 100423_ACTTs_3_1_sequence.txt > 1_flat.txt"
   end
   
   def count_input_sequence()
@@ -193,7 +193,7 @@ class SampleCleanerApp
     fgrep -h CONFLICT part-* > conflict.txt
     fgrep -h DIDNT_YIELD part-* > didnt_yield.txt
     fgrep -h PASS part-* > pass.txt
-    fgrep -h PASS part-* | tee (awk -F '\t' '{print $1"\n"$2"\n"$3"\n"$4}' > 1.txt) (awk -F '\t' '{print $6"\n"$7"\n"$8"\n"$9}' > 2.txt) pass.txt
+    fgrep -h PASS part-* | tee (cut -f -4 > 1.txt) (cut -f 6-9 > 2.txt) /dev/null
     EOF
   end
   
@@ -216,6 +216,7 @@ class SampleCleanerApp
   
   def fail(msg)
     @stderr.puts msg
+    @stderr.flush
     @logger.log(:stderr,msg)
     @logger.teardown
     exit 1
