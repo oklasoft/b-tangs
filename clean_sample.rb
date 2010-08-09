@@ -167,7 +167,7 @@ class SampleCleanerApp
   
   def save_final_stats
     keys = [:raw, :passed_cleaned, :rejected, :conflicted, :unknown]
-    File.open(File.join(base_output_dir,'stats.txt'), 'w') do |f| 
+    File.open(File.join(final_output_dir_path(),'stats.txt'), 'w') do |f| 
       keys.each do |k|
         f.print "\t#{k}"
       end
