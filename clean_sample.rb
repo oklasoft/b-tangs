@@ -193,7 +193,22 @@ class SampleCleanerApp
   end
   
   def flatten_fastq()
-    return "awk '{printf( \"%s%s\", $0, (NR%4 ? \"\t\" : \"\t1\n\") ) }' 100423_ACTTs_3_1_sequence.txt > 1_flat.txt"
+    @options.input_files.each_with_index do |infile,index|
+      outfile = "#{index+1}_flattened.txt"
+      cmd = %{awk '{printf( "%s%s", $0, (NR%4 ? "\\t" : "\\t#{index+1}\\n") ) }' #{infile} > #{outfile}}
+
+      c = OMRF::LoggedExternalCommand.new(cmd,@logger)
+      output_user("Flattening fastq of #{infile}")
+      output_user("Executing: `#{cmd}`",true)
+      unless c.run
+        return "#{cmd} failed: #{c.exit_status}"
+      end
+
+      File.delete(infile)
+      @options.input_files[index] = File.join(Dir.pwd,outfile)      
+    end
+    return true
+    return ""
   end
   
   def count_input_sequence()
