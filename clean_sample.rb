@@ -82,9 +82,11 @@ class SampleCleanerApp
   
   def run
     if options_parsed? && options_valid?
-      output_options(@stdout) if @options.verbose
-      Dir.tmpdir do
-        # do the work
+      return_dir = Dir.pwd
+      Dir.mktmpdir do |tmp_dir|
+        Dir.chdir(tmp_dir)
+        clean_sample()
+        Dir.chdir(return_dir)
       end
     else
       @stderr.puts("")
@@ -95,8 +97,21 @@ class SampleCleanerApp
   
   private
   
+  def clean_sample()
+    output_options(@stdout) if @options.verbose
+    output_user("Working in #{Dir.getwd}", true)
+
+    start_time = Time.now
+    output_user "Starting clean of #{@options.sample} at #{start_time.utc}"
+    
+  end
+  
+  def output_user(msg,verbosity=false)
+    @stdout.puts msg if !verbosity || @options.verbose
+  end
+  
   def final_output_dir_path
-    @output_dir_path ||= File.join(@options.base_output_dir,"#{@options.sample}_#{@options.run_name}_#{@options.lane}")
+    @options.final_output_dir_path ||= File.join(@options.base_output_dir,"#{@options.sample}_#{@options.run_name}_#{@options.lane}")
   end
   
   def output_help(out)
@@ -277,8 +292,8 @@ Options:
   
   def set_inputs_outputs(ios)
     @stdin = ios[:stdin] || STDIN
-    @stdout = ios[:stdin] || STDOUT
-    @stderr = ios[:stdin] || STDERR
+    @stdout = ios[:stdout] || STDOUT
+    @stderr = ios[:stderr] || STDERR
   end
 end
 
