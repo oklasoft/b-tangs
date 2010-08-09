@@ -213,11 +213,7 @@ class SampleCleanerApp
   def count_input_sequence()
     lines = []
     @options.input_files.each do |input_file|
-      num_lines = 0
-      IO.foreach(input_file) do
-        num_lines += 1
-      end
-      lines << num_lines
+      lines << count_lines(input_file)
     end
     if lines[0] != lines[1]
       return "different number of lines in '#{@options.input_files.join(",")}', #{lines.join(":")}"
@@ -226,6 +222,14 @@ class SampleCleanerApp
     end
     @metrics[:raw] = lines[0]
     return true
+  end
+  
+  def count_lines(input_file)
+    num_lines = 0
+    IO.foreach(input_file) do
+      num_lines += 1
+    end
+    return num_lines
   end
   
   def make_hadoop_workdir()
