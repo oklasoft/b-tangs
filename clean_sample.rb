@@ -369,7 +369,13 @@ class SampleCleanerApp
       ]
     end
     cmd = "fgrep -h PASS part-* | tee >(#{cuts[0]}) >(#{cuts[1]}) >/dev/null"
-    wrap_command(cmd) do
+  
+    split_passing = File.join(Dir.pwd,"split_passing.sh")
+    File.open(split_passing,"w") do |f|
+      f.puts "/bin/bash"
+      f.puts cmd
+    end
+    wrap_command("sh #{split_passing}") do
       output_user("Splitting the passing read to the two pair files #{pair_1_file} & #{pair_2_file}")
     end
     
