@@ -259,7 +259,7 @@ class SampleCleanerApp
   end
   
   def make_hadoop_workdir()
-    cmd = "hadoop fs -mkdir #{base_hadoop_path()}"
+    cmd = "hadoop fs -mkdir #{hadoop_input_dir()}"
     wrap_command(cmd) do
       output_user("Making base hadoop dir")
     end
