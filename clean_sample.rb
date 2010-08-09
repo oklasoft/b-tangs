@@ -192,7 +192,7 @@ class SampleCleanerApp
           "cat"
       end
       outfile = "#{index+1}.txt"
-      cmd = "#{decompressor} #{infile} | tr -d '\\r' > #{outfile}"
+      cmd = "#{decompressor} \"#{infile}\" | tr -d '\\r' > #{outfile}"
 
       wrap_command(cmd) do
         output_user("Getting raw sequence in #{infile}")        
