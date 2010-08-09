@@ -368,7 +368,7 @@ class SampleCleanerApp
         %{awk -F '\\t' '{print $6"\\n"$7"\\n"$8"\\n"$9}' > #{File.join(final_output_dir_path(),pair_2_file)}}
       ]
     end
-    cmd = "fgrep -h PASS part-* | tee (#{cuts[0]}) (#{cuts[1]}) /dev/null"
+    cmd = "fgrep -h PASS part-* | tee >(#{cuts[0]}) >(#{cuts[1]}) >/dev/null"
     wrap_command(cmd) do
       output_user("Splitting the passing read to the two pair files #{pair_1_file} & #{pair_2_file}")
     end
