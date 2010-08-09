@@ -83,7 +83,7 @@ class SampleCleanerApp
   DIDNT_YIELD_FILE = 'didnt_yields.txt'
   
   VERSION       = "1.0.0"
-  REVISION_DATE = "2010-08-06"
+  REVISION_DATE = "2010-08-09"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
   COPYRIGHT     = "Copyright (c) 2010 Oklahoma Medical Research Foundation"
   
