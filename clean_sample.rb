@@ -82,6 +82,8 @@ class SampleCleanerApp
   
   def run
     if options_parsed? && options_valid?
+      setup_logger()
+      
       return_dir = Dir.pwd
       Dir.mktmpdir do |tmp_dir|
         Dir.chdir(tmp_dir)
@@ -96,6 +98,12 @@ class SampleCleanerApp
   end
   
   private
+
+  def setup_logger()
+    file = File.open(File.join(final_output_dir_path(),"log.txt"),"w")
+    @logger = OMRF::FstreamLogger.new(file,file)
+    @logger.extend OMRF::TimeDecorator
+  end
   
   def clean_sample()
     output_options(@stdout) if @options.verbose
@@ -104,10 +112,35 @@ class SampleCleanerApp
     start_time = Time.now
     output_user "Starting clean of #{@options.sample} at #{start_time.utc}"
     
+    try("Error getting sequence") {get_raw_input_sequence()}
+    
+    end_time = Time.now
+    output_user "Finished cleaning (probably) successfully at #{end_time.utc} (#{end_time-start_time})"
+  end
+  
+  def get_raw_input_sequence
+    return "ah fuck"
+  end
+  
+  def try(msg,&block)
+    result = yield
+    if result.is_a?(String) then
+      fail "#{msg}: #{result}"
+    else
+      return true
+    end
+  end
+  
+  def fail(msg)
+    @stderr.puts msg
+    @logger.log(:stderr,msg)
+    @logger.teardown
+    exit 1
   end
   
   def output_user(msg,verbosity=false)
     @stdout.puts msg if !verbosity || @options.verbose
+    @logger.log(:stdout,msg)
   end
   
   def final_output_dir_path
@@ -301,9 +334,7 @@ if $0 == __FILE__
   SampleCleanerApp.new(ARGV.clone).run
 end
 
-# my_log = OMRF::FstreamLogger.new(STDOUT,STDERR)
-# my_log.extend OMRF::TimeDecorator
-# 
+
 # c = OMRF::LoggedExternalCommand.new('ls',my_log)
 # puts "Proc failed!" unless c.run
 # 

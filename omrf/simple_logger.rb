@@ -7,6 +7,10 @@ module OMRF
     def initialize(*opts)
 
     end
+    
+    def teardown
+      
+    end
 
     def log(type,msg)
       raise "Must implement!"

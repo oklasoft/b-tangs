@@ -10,6 +10,11 @@ module OMRF
       @out = out
       @err = err
     end
+    
+    def teardown
+      @out.close
+      @err.close unless @err.closed?
+    end
 
     def log(type,msg)
       case type
