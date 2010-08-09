@@ -343,15 +343,15 @@ class SampleCleanerApp
   end
   
   def split_rejects()
-    split_key_from_data_to_dest("REJECT",File.join(@options.base_output_dir,REJECT_FILE))
+    split_key_from_data_to_dest("REJECT",File.join(final_output_dir_path(),REJECT_FILE))
   end
   
   def split_conflicts()
-    split_key_from_data_to_dest("CONFLICTS",File.join(@options.base_output_dir,CONFLICTS_FILE))
+    split_key_from_data_to_dest("CONFLICTS",File.join(final_output_dir_path(),CONFLICTS_FILE))
   end
   
   def split_didnt_yields()
-    split_key_from_data_to_dest("DIDNT_YIELD",File.join(@options.base_output_dir,DIDNT_YIELD_FILE))
+    split_key_from_data_to_dest("DIDNT_YIELD",File.join(final_output_dir_path(),DIDNT_YIELD_FILE))
   end
   
   def split_passings
@@ -359,13 +359,13 @@ class SampleCleanerApp
     pair_2_file = cleaned_sequence_base_file_name(2)
     cuts = if :qseq == @options.sequence_format
       [
-        "cut -f -11 > #{File.join(base_output_dir,pair_1_file)}",
-        "cut -f -7,19-22 > #{File.join(base_output_dir,pair_2_file)}"  
+        "cut -f -11 > #{File.join(final_output_dir_path(),pair_1_file)}",
+        "cut -f -7,19-22 > #{File.join(final_output_dir_path(),pair_2_file)}"  
       ]
     elsif :fastq == @options.sequence_format
       [
-        %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(base_output_dir(),pair_1_file)}},
-        %{awk -F '\\t' '{print $6"\\n"$7"\\n"$8"\\n"$9}' > #{File.join(base_output_dir(),pair_2_file)}}
+        %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(final_output_dir_path()(),pair_1_file)}},
+        %{awk -F '\\t' '{print $6"\\n"$7"\\n"$8"\\n"$9}' > #{File.join(final_output_dir_path()(),pair_2_file)}}
       ]
     end
     cmd = "fgrep -h PASS part-* | tee (#{cuts[0]}) (#{cuts[1]}) /dev/null"
@@ -408,7 +408,7 @@ class SampleCleanerApp
   def clean_hadoop()
     cmd = "hadoop fs -rmr #{base_hadoop_path()}"
     wrap_command(cmd) do
-      output_user("Making base hadoop dir")
+      output_user("Removing hadoop dir")
     end
   end
   
