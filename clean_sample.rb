@@ -364,8 +364,8 @@ class SampleCleanerApp
       ]
     elsif :fastq == @options.sequence_format
       [
-        %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(final_output_dir_path()(),pair_1_file)}},
-        %{awk -F '\\t' '{print $6"\\n"$7"\\n"$8"\\n"$9}' > #{File.join(final_output_dir_path()(),pair_2_file)}}
+        %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(final_output_dir_path(),pair_1_file)}},
+        %{awk -F '\\t' '{print $6"\\n"$7"\\n"$8"\\n"$9}' > #{File.join(final_output_dir_path(),pair_2_file)}}
       ]
     end
     cmd = "fgrep -h PASS part-* | tee (#{cuts[0]}) (#{cuts[1]}) /dev/null"
