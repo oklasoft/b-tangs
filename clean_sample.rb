@@ -78,6 +78,10 @@ class SampleCleanerApp
   HADOOP_CLEANED_FOLDER = "02_cleaned"
   HADOOP_FINAL_FOLDER = "03_final"
   
+  REJECT_FILE = 'rejects.txt'
+  CONFLICTS_FILE = 'conflicts.txt'
+  DIDNT_YIELD_FILE = 'didnt_yields.txt'
+  
   VERSION       = "1.0.0"
   REVISION_DATE = "2010-08-06"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
@@ -87,7 +91,7 @@ class SampleCleanerApp
     @args = args
     set_inputs_outputs(ios)
     set_default_options()
-    @metrics = {:raw => 0, :passed_cleaned => 0, :rejected => 0, :conflichted => 0, :unknown => 0}
+    @metrics = {:raw => 0, :passed_cleaned => 0, :rejected => 0, :conflicted => 0, :unknown => 0}
   end
   
   def run
@@ -154,8 +158,25 @@ class SampleCleanerApp
     
     try("Error counting output sequence") {count_output_sequences()}
     
+    save_final_stats()
+    
     end_time = Time.now
     output_user "Finished cleaning (probably) successfully at #{end_time.utc} (#{end_time-start_time})"
+  end
+  
+  def save_final_stats
+    keys = [:raw, :passed_cleaned, :rejected, :conflicted, :unknown]
+    File.open(File.join(base_output_dir,'stats.txt'), 'w') do |f| 
+      keys.each do |k|
+        f.print "\t#{k}"
+      end
+      f.puts
+      print "#{cleaned_sequence_base_file_name("{1,2}")}"
+      keys.each do |k|
+        f.print "\t#{@metrics[k]}"
+      end
+      f.puts
+    end
   end
   
   # take the original input files, decompressing & copying them over to our
@@ -288,29 +309,106 @@ class SampleCleanerApp
   end
   
   def finalize_clean_reads_in_hadoop()
-    return "ruby1.9 ~/tmp/b-tangs/b-tangs/joined_fastq_finisher.rb --run=hadoop --reduce_tasks=30 100423/run_41/ACCT_3/02_cleaned 100423/run_41/ACCT_3/03_finalized"
+    cmd = if :qseq == @options.sequence_format 
+      "joined_qseq_finisher.rb"
+    elsif :fastq == @options.sequence_format
+      "joined_fastq_finisher.rb"
+    end
+    cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} #{hadoop_cleaned_dir} #{hadoop_final_dir}"
+    wrap_command(cmd) do
+      output_user("Finalizing the cleaned reads in hadoop")
+    end
   end
   
   def get_output_out_of_hadoop()
-    return "hadoop fs -get 100423/run_41/ACCT_3/03_finalized/\*"
+    cmd = "hadoop fs -get #{hadoop_final_dir}part-\\* ."
+    wrap_command(cmd) do
+      output_user("Getting dataset back out of hadoop")
+    end
   end
   
   def split_output()
-    return <<-EOF
-    fgrep -h REJECT part-* > reject.txt
-    fgrep -h CONFLICT part-* > conflict.txt
-    fgrep -h DIDNT_YIELD part-* > didnt_yield.txt
-    fgrep -h PASS part-* > pass.txt
-    fgrep -h PASS part-* | tee (cut -f -4 > 1.txt) (cut -f 6-9 > 2.txt) /dev/null
-    EOF
+    split_rejects() &&
+    split_conflicts() &&
+    split_didnt_yields() &&
+    split_passings
+  end
+  
+  def split_key_from_data_to_dest(key,dest)
+    cmd = "fgrep -h #{key} part-* > #{dest}"
+    wrap_command(cmd) do
+      output_user("Splitting #{key} to #{dest}")
+    end
+  end
+  
+  def split_rejects()
+    split_key_from_data_to_dest("REJECT",File.join(@options.base_output_dir,REJECT_FILE))
+  end
+  
+  def split_conflicts()
+    split_key_from_data_to_dest("CONFLICTS",File.join(@options.base_output_dir,CONFLICTS_FILE))
+  end
+  
+  def split_didnt_yields()
+    split_key_from_data_to_dest("DIDNT_YIELD",File.join(@options.base_output_dir,DIDNT_YIELD_FILE))
+  end
+  
+  def split_passings
+    pair_1_file = cleaned_sequence_base_file_name(1)
+    pair_2_file = cleaned_sequence_base_file_name(2)
+    cuts = if :qseq == @options.sequence_format
+      [
+        "cut -f -11 > #{File.join(base_output_dir,pair_1_file)}",
+        "cut -f -7,19-22 > #{File.join(base_output_dir,pair_2_file)}"  
+      ]
+    elsif :fastq = @options.sequence_format
+      [
+        %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(base_output_dir,pair_1_file)}},
+        %{awk -F '\\t' '{print $6"\\n"$7"\\n"$8"\\n"$9}' > #{File.join(base_output_dir,pair_2_file)}}
+      ]
+    end
+    cmd = "fgrep -h PASS part-* | tee (#{cuts[0]}) (#{cuts[1]}) /dev/null"
+    wrap_command(cmd) do
+      output_user("Splitting the passing read to the two pair files #{pair_1_file} & #{pair_2_file}")
+    end
+    
   end
   
   def count_output_sequences()
-    puts "wc -l *.txt"
+    output_user("Counting up the number of reads in the various files")
+
+    @metrics[:conflicted] = count_lines(File.join(base_output_dir,CONFLICTS_FILE))
+    output_user("There were #{@metrics[:conflicted]} conflicts")
+    
+    @metrics[:unknown] = count_lines(File.join(base_output_dir,DIDNT_YIELD_FILE))
+    output_user("There were #{@metrics[:unknown]} unknowns")
+
+    @metrics[:rejected] = count_lines(File.join(base_output_dir,REJECT_FILE))
+    output_user("There were #{@metrics[:rejected]} rejects")
+    
+    cleaned_a = count_lines(File.join(base_output_dir,cleaned_sequence_base_file_name(1)))
+    cleaned_b = count_lines(File.join(base_output_dir,cleaned_sequence_base_file_name(2)))
+    
+    if :fastq == @options.sequence_format
+      cleaned_a /= 4
+      cleaned_b /= 4
+    end
+    
+    if cleaned_a != cleaned_b
+      return "There were different number of cleaned in the two pairs #{cleaned_a} vs #{cleaned_b}"
+    end
+    
+    output_user("There were #{cleaned_a} passing")
+    @metrics[:passed_cleaned] = cleaned_a
+
+    return true
   end
   
   def clean_hadoop()
-    return "hadoop fs -rmr 100423/run_41/ACCT_3/"
+    cmd = "hadoop fs -rmr #{base_hadoop_path()}"
+    wrap_command(cmd) do
+      output_user("Making base hadoop dir")
+    end
   end
   
   def try(msg,&block)
@@ -333,6 +431,11 @@ class SampleCleanerApp
   def output_user(msg,verbosity=false)
     @stdout.puts msg if !verbosity || @options.verbose
     @logger.log(:stdout,msg)
+  end
+  
+  def cleaned_sequence_base_file_name(pair_number)
+    extension = @options.sequence_format
+    "#{@options.sample}_cleaned_#{@options.run_name}_#{@options.lane}_#{pair_number}.#{extension}"
   end
   
   def final_output_dir_path
