@@ -69,6 +69,10 @@ require 'omrf/logged_external_command'
 require 'omrf/dir_extensions'
 
 class SampleCleanerApp
+  
+  NUMBER_FASTQ_FIELDS = 1
+  NUMBER_QSEQ_FIELDS = 11
+  
   VERSION       = "1.0.0"
   REVISION_DATE = "2010-08-06"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
@@ -118,6 +122,8 @@ class SampleCleanerApp
     try("Error getting sequence") {get_raw_input_sequence()}
 
     try("Error detecting sequence type") {detect_sequence_type()}
+    
+    output_user("Working with #{@options.sequence_format} files")
 
     try("Error flattening fastq") {flatten_fastq()} if :fastq == @options.sequence_format
 
@@ -157,7 +163,8 @@ class SampleCleanerApp
         else
           "cat"
       end
-      cmd = "#{decompressor} #{infile} | tr -d '\\r' > #{index+1}.txt"
+      outfile = "#{index+1}.txt"
+      cmd = "#{decompressor} #{infile} | tr -d '\\r' > #{outfile}"
 
       c = OMRF::LoggedExternalCommand.new(cmd,@logger)
       output_user("Getting raw sequence in #{infile}")
@@ -165,12 +172,24 @@ class SampleCleanerApp
       unless c.run
         return "#{cmd} failed: #{c.exit_status}"
       end
+      @options.input_files[index] = File.join(Dir.pwd,outfile)
     end
     return true
   end
   
   def detect_sequence_type()
-    return "head -n 1 100423_ACTTs_3_2_sequence.txt| awk -F '\t' '{print NF}' # qseq or fastq"
+    output_user("Detecting input format via '#{@options.input_files.first}'")
+    IO.foreach(@options.input_files.first) do |line|
+      parts = line.chomp.split(/\t/)
+      if NUMBER_FASTQ_FIELDS == parts.size
+        @options.sequence_format = :fastq
+      elsif NUMBER_QSEQ_FIELDS == parts.size
+        @options.sequence_format = :qseq
+      else
+        return "unknown format with #{parts.size} fields in '#{line.chomp}' from #{@options.input_files.first}"
+      end
+      break
+    end
   end
   
   def flatten_fastq()
