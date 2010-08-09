@@ -166,7 +166,7 @@ class SampleCleanerApp
   end
   
   def save_final_stats
-    keys = [:raw, :passed_cleaned, :rejected, :conflicted, :unknown]
+    keys = [:raw, :passed_cleaned, :rejected, :conflicted, :unknown, '% kept']
     File.open(File.join(final_output_dir_path(),'stats.txt'), 'w') do |f| 
       keys.each do |k|
         f.print "\t#{k}"
@@ -176,6 +176,7 @@ class SampleCleanerApp
       keys.each do |k|
         f.print "\t#{@metrics[k]}"
       end
+      f.printf("\t%.4f",@metrics[:passed_cleaned]/@metrics[:raw].to_f*100)
       f.puts
     end
   end
