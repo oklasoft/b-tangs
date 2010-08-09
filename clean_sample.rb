@@ -73,6 +73,11 @@ class SampleCleanerApp
   NUMBER_FASTQ_FIELDS = 1
   NUMBER_QSEQ_FIELDS = 11
   
+  HADOOP_INPUT_FOLDER = "00_input"
+  HADOOP_JOINED_FOLDER = "01_joined"
+  HADOOP_CLEANED_FOLDER = "02_cleaned"
+  HADOOP_FINAL_FOLDER = "03_final"
+  
   VERSION       = "1.0.0"
   REVISION_DATE = "2010-08-06"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
@@ -251,18 +256,35 @@ class SampleCleanerApp
   
   def put_input_sequnce_into_hadoop()
     files = @options.input_files.join(" ")
-    cmd = "hadoop fs -put #{files} #{base_hadoop_path()}/"
+    cmd = "hadoop fs -put #{files} #{hadoop_input_dir()}"
     wrap_command(cmd) do
       output_user("Putting #{files} into hadoop")
     end
   end
   
   def join_reads_in_hadoop()
-    return "ruby1.9 ~/tmp/b-tangs/b-tangs/flat_fasta_joiner.rb --reduce_tasks=30 --run=hadoop --single_line --allow_both_fail 100423/run_41/ACCT_3/input/ 100423/run_41/ACCT_3/01_joined"
+    cmd = if :qseq == @options.sequence_format 
+      "qseq_joiner.rb"
+    elsif :fastq == @options.sequence_format
+      "flat_fasta_joiner.rb"
+    end
+    cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} --single_line --allow_both_fail #{hadoop_input_dir} #{hadoop_joined_dir}"
+    wrap_command(cmd) do
+      output_user("Joining the reads to build the 'joined_reads'")
+    end
   end
   
   def clean_reads_in_hadoop_with_btangs()
-    return "ruby1.9 ~/tmp/b-tangs/b-tangs/b-tangs.rb --run=hadoop --reduce_tasks=30 --input_format=joined_fastq --range_start=0 --range_size=10 --similarity=1.0 --key_type=sep_joined_pairs --both_ends --include_rejects 100423/run_41/ACCT_3/01_joined 100423/run_41/ACCT_3/02_cleaned"
+    cmd = "b-tangs.rb --run=hadoop --reduce_tasks=#{@options.num_reducers} --range_start=0 --range_size=10 --similarity=1.0 --key_type=sep_joined_pairs --both_ends --include_rejects --input_format="
+    cmd += if :qseq == @options.sequence_format
+      "joined_qseq"
+    elsif :fastq == @options.sequence_format
+      "joined_fastq"
+    end
+    cmd += "#{hadoop_joined_dir} #{hadoop_cleaned_dir}"
+    wrap_command(cmd) do
+      output_user("Cleaning the joined_reads with b-tangs")
+    end
   end
   
   def finalize_clean_reads_in_hadoop()
@@ -318,7 +340,23 @@ class SampleCleanerApp
   end
   
   def base_hadoop_path
-    @base_hadoop_path ||= File.join(@options.sample,@options.run_name,@options.lane,$$.to_s)
+    @base_hadoop_path ||= File.join(@options.sample,@options.run_name,@options.lane,"b-tangs_#{$$.to_s}")
+  end
+  
+  def hadoop_input_dir
+    File.join(base_hadoop_path(),HADOOP_INPUT_FOLDER) + "/"
+  end
+  
+  def hadoop_joined_dir
+    File.join(base_hadoop_path(),HADOOP_JOINED_FOLDER) + "/"
+  end
+  
+  def hadoop_cleaned_dir
+    File.join(base_hadoop_path(),HADOOP_CLEANED_FOLDER) + "/"
+  end
+  
+  def hadoop_final_dir
+    File.join(base_hadoop_path(),HADOOP_FINAL_FOLDER) + "/"
   end
   
   def output_help(out)
@@ -364,7 +402,8 @@ Options:
       :input_files  => nil,
       :base_output_dir => nil,
       :verbose => false,
-      :log_file => nil
+      :log_file => nil,
+      :num_reducers => 30
     )
   end
   
