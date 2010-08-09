@@ -78,6 +78,7 @@ class SampleCleanerApp
     @args = args
     set_inputs_outputs(ios)
     set_default_options()
+    @metrics = {:raw => 0, :passed_cleaned => 0, :rejected => 0, :conflichted => 0, :unknown => 0}
   end
   
   def run
@@ -90,6 +91,8 @@ class SampleCleanerApp
         clean_sample()
         Dir.chdir(return_dir)
       end
+      @logger.teardown
+      
     else
       @stderr.puts("")
       output_usage(@stderr)
@@ -113,18 +116,98 @@ class SampleCleanerApp
     output_user "Starting clean of #{@options.sample} at #{start_time.utc}"
     
     try("Error getting sequence") {get_raw_input_sequence()}
+
+    try("Error detecting sequence type") {detect_sequence_type()}
+
+    try("Error flattening fastq") {flatten_fastq()} if :fastq == @options.sequence_format
+
+    try("Error counting raw") {count_input_sequence()}
+
+    try("Error creating hadoop working dir") {make_hadoop_workdir()}
+    
+    try("Error putting input to hadoop") {put_input_sequnce_into_hadoop()}
+    
+    try("Error joining reads") {join_reads_in_hadoop()}
+    
+    try("Error cleaning joined reads") {clean_reads_in_hadoop_with_btangs()}
+    
+    try("Error finalizing cleaning joined reads") {finalize_clean_reads_in_hadoop()}
+    
+    try("Error output from hadoop") {get_output_out_of_hadoop()}
+    
+    try("Error cleaning hadoop") {clean_hadoop()}
+    
+    try("Error splitting output") {split_output()}
+    
+    try("Error counting output sequence") {count_output_sequences()}
     
     end_time = Time.now
     output_user "Finished cleaning (probably) successfully at #{end_time.utc} (#{end_time-start_time})"
   end
   
+  
   def get_raw_input_sequence
-    return "ah fuck"
+    # TODO check compression?
+    return "lzop -dc 100423/Raw\ data/sorted\ sequence/100423_ACTTs_3_1_sequence.txt.lzo |tr '\r' '' > /tmp/b_tangs_cleaning/100423_ACTTs_3_1_sequence.txt"
+  end
+  
+  def detect_sequence_type()
+    return "head -n 1 100423_ACTTs_3_2_sequence.txt| awk -F '\t' '{print NF}' # qseq or fastq"
+  end
+  
+  def flatten_fastq()
+    return "awk '{printf( \"%s%s\", $0, (NR%4 ? "\t" : \"\t1\n\") ) }' 100423_ACTTs_3_1_sequence.txt > 1_flat.txt"
+  end
+  
+  def count_input_sequence()
+    return "wc -l *.txt #/4 or no"
+  end
+  
+  def make_hadoop_workdir()
+    return "hadoop fs -mkdir 100423/run_41/ACCT_3/input"    
+  end
+  
+  def put_input_sequnce_into_hadoop()
+    return "hadoop fs -put *.txt 100423/run_41/ACCT_3/input/"
+  end
+  
+  def join_reads_in_hadoop()
+    return "ruby1.9 ~/tmp/b-tangs/b-tangs/flat_fasta_joiner.rb --reduce_tasks=30 --run=hadoop --single_line --allow_both_fail 100423/run_41/ACCT_3/input/ 100423/run_41/ACCT_3/01_joined"
+  end
+  
+  def clean_reads_in_hadoop_with_btangs()
+    return "ruby1.9 ~/tmp/b-tangs/b-tangs/b-tangs.rb --run=hadoop --reduce_tasks=30 --input_format=joined_fastq --range_start=0 --range_size=10 --similarity=1.0 --key_type=sep_joined_pairs --both_ends --include_rejects 100423/run_41/ACCT_3/01_joined 100423/run_41/ACCT_3/02_cleaned"
+  end
+  
+  def finalize_clean_reads_in_hadoop()
+    return "ruby1.9 ~/tmp/b-tangs/b-tangs/joined_fastq_finisher.rb --run=hadoop --reduce_tasks=30 100423/run_41/ACCT_3/02_cleaned 100423/run_41/ACCT_3/03_finalized"
+  end
+  
+  def get_output_out_of_hadoop()
+    return "hadoop fs -get 100423/run_41/ACCT_3/03_finalized/\*"
+  end
+  
+  def split_output()
+    return <<-EOF
+    fgrep -h REJECT part-* > reject.txt
+    fgrep -h CONFLICT part-* > conflict.txt
+    fgrep -h DIDNT_YIELD part-* > didnt_yield.txt
+    fgrep -h PASS part-* > pass.txt
+    fgrep -h PASS part-* | tee (awk -F '\t' '{print $1"\n"$2"\n"$3"\n"$4}' > 1.txt) (awk -F '\t' '{print $6"\n"$7"\n"$8"\n"$9}' > 2.txt) pass.txt
+    EOF
+  end
+  
+  def count_output_sequences()
+    puts "wc -l *.txt"
+  end
+  
+  def clean_hadoop()
+    return "hadoop fs -rmr 100423/run_41/ACCT_3/"
   end
   
   def try(msg,&block)
     result = yield
-    if result.is_a?(String) then
+    if result.is_a?(String) || result.is_a?(FalseClass) then
       fail "#{msg}: #{result}"
     else
       return true
