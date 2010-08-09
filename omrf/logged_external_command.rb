@@ -29,7 +29,12 @@ class LoggedExternalCommand
       
       [out,err].each { |t| t.join}
     end
-    @exit_status = status.exitstatus
+    if nil == status
+      @exit_status = 255
+      @output.log(:stderr,"Unable to start command")
+    else
+      @exit_status = status.exitstatus
+    end
     return 0 == @exit_status
   end
   
