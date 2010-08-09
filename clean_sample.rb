@@ -129,6 +129,8 @@ class SampleCleanerApp
 
     try("Error counting raw") {count_input_sequence()}
 
+    output_user("Will clean #{@metrics[:raw]} reads")
+
     try("Error creating hadoop working dir") {make_hadoop_workdir()}
     
     try("Error putting input to hadoop") {put_input_sequnce_into_hadoop()}
@@ -166,11 +168,8 @@ class SampleCleanerApp
       outfile = "#{index+1}.txt"
       cmd = "#{decompressor} #{infile} | tr -d '\\r' > #{outfile}"
 
-      c = OMRF::LoggedExternalCommand.new(cmd,@logger)
-      output_user("Getting raw sequence in #{infile}")
-      output_user("Executing: `#{cmd}`",true)
-      unless c.run
-        return "#{cmd} failed: #{c.exit_status}"
+      wrap_command(cmd) do
+        output_user("Getting raw sequence in #{infile}")        
       end
       @options.input_files[index] = File.join(Dir.pwd,outfile)
     end
@@ -212,11 +211,38 @@ class SampleCleanerApp
   end
   
   def count_input_sequence()
-    return "wc -l *.txt #/4 or no"
+    lines = []
+    @options.input_files.each do |input_file|
+      num_lines = 0
+      IO.foreach(input_file) do
+        num_lines += 1
+      end
+      lines << num_lines
+    end
+    if lines[0] != lines[1]
+      return "different number of lines in '#{@options.input_files.join(",")}', #{lines.join(":")}"
+    elsif 0 == lines[0] 
+      return "No lines in input files '#{@options.input_files.join(",")}"
+    end
+    @metrics[:raw] = lines[0]
+    return true
   end
   
   def make_hadoop_workdir()
-    return "hadoop fs -mkdir 100423/run_41/ACCT_3/input"    
+    cmd = "hadoop fs -mkdir #{base_hadoop_path()}"
+    wrap_command(cmd) do
+      output_user("Making base hadoop dir")
+    end
+  end
+  
+  def wrap_command(cmd,&block)
+    c = OMRF::LoggedExternalCommand.new(cmd,@logger)
+    yield
+    output_user("Executing: `#{cmd}`",true)
+    unless c.run
+      return "#{cmd} failed: #{c.exit_status}"
+    end
+    return true
   end
   
   def put_input_sequnce_into_hadoop()
@@ -281,6 +307,10 @@ class SampleCleanerApp
   
   def final_output_dir_path
     @options.final_output_dir_path ||= File.join(@options.base_output_dir,"#{@options.sample}_#{@options.run_name}_#{@options.lane}")
+  end
+  
+  def base_hadoop_path
+    @base_hadoop_path ||= File.join(@options.sample,@options.run_name,@options.lane,$$.to_s)
   end
   
   def output_help(out)
