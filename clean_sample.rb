@@ -364,8 +364,8 @@ class SampleCleanerApp
       ]
     elsif :fastq == @options.sequence_format
       [
-        %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(base_output_dir,pair_1_file)}},
-        %{awk -F '\\t' '{print $6"\\n"$7"\\n"$8"\\n"$9}' > #{File.join(base_output_dir,pair_2_file)}}
+        %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(base_output_dir(),pair_1_file)}},
+        %{awk -F '\\t' '{print $6"\\n"$7"\\n"$8"\\n"$9}' > #{File.join(base_output_dir(),pair_2_file)}}
       ]
     end
     cmd = "fgrep -h PASS part-* | tee (#{cuts[0]}) (#{cuts[1]}) /dev/null"
@@ -378,17 +378,17 @@ class SampleCleanerApp
   def count_output_sequences()
     output_user("Counting up the number of reads in the various files")
 
-    @metrics[:conflicted] = count_lines(File.join(base_output_dir,CONFLICTS_FILE))
+    @metrics[:conflicted] = count_lines(File.join(final_output_dir_path(),CONFLICTS_FILE))
     output_user("There were #{@metrics[:conflicted]} conflicts")
     
-    @metrics[:unknown] = count_lines(File.join(base_output_dir,DIDNT_YIELD_FILE))
+    @metrics[:unknown] = count_lines(File.join(final_output_dir_path(),DIDNT_YIELD_FILE))
     output_user("There were #{@metrics[:unknown]} unknowns")
 
-    @metrics[:rejected] = count_lines(File.join(base_output_dir,REJECT_FILE))
+    @metrics[:rejected] = count_lines(File.join(final_output_dir_path(),REJECT_FILE))
     output_user("There were #{@metrics[:rejected]} rejects")
     
-    cleaned_a = count_lines(File.join(base_output_dir,cleaned_sequence_base_file_name(1)))
-    cleaned_b = count_lines(File.join(base_output_dir,cleaned_sequence_base_file_name(2)))
+    cleaned_a = count_lines(File.join(final_output_dir_path(),cleaned_sequence_base_file_name(1)))
+    cleaned_b = count_lines(File.join(final_output_dir_path(),cleaned_sequence_base_file_name(2)))
     
     if :fastq == @options.sequence_format
       cleaned_a /= 4
