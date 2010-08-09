@@ -145,10 +145,28 @@ class SampleCleanerApp
     output_user "Finished cleaning (probably) successfully at #{end_time.utc} (#{end_time-start_time})"
   end
   
-  
+  # take the original input files, decompressing & copying them over to our
+  # temp work dir. Also replace any possible crappy CRLF action
   def get_raw_input_sequence
-    # TODO check compression?
-    return "lzop -dc 100423/Raw\ data/sorted\ sequence/100423_ACTTs_3_1_sequence.txt.lzo |tr '\\r' '' > /tmp/b_tangs_cleaning/100423_ACTTs_3_1_sequence.txt"
+    @options.input_files.each_with_index do |infile,index|
+      decompressor = case File.extname(infile)
+        when /\.gz/
+          "gzcat"
+        when /\.lzo/
+          "lzop -dc"
+        else
+          "cat"
+      end
+      cmd = "#{decompressor} #{infile} | tr -d '\\r' > #{index+1}.txt"
+
+      c = OMRF::LoggedExternalCommand.new(cmd,@logger)
+      output_user("Getting raw sequence in #{infile}")
+      output_user("Executing: `#{cmd}`",true)
+      unless c.run
+        return "#{cmd} failed: #{c.exit_status}"
+      end
+    end
+    return true
   end
   
   def detect_sequence_type()
@@ -372,6 +390,7 @@ Options:
         return false
       end
     end
+    @options.input_files.sort!
     return true
   end
   
@@ -417,10 +436,3 @@ end
 if $0 == __FILE__
   SampleCleanerApp.new(ARGV.clone).run
 end
-
-
-# c = OMRF::LoggedExternalCommand.new('ls',my_log)
-# puts "Proc failed!" unless c.run
-# 
-# c2 = OMRF::LoggedExternalCommand.new('ls testies',my_log)
-# puts "Proc failed!" unless c2.run
