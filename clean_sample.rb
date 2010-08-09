@@ -12,7 +12,7 @@
 #  clean_sample.rb --run A --lane 3 --sample 1 /data/s_3_{1,2}.qseq /Volumes/hts_raw/to_ipmort/
 #
 # == Usage
-#  clean_sample.rb -r RUN_NAME -l LANE_NAME -s SAMPLE_ID INPUT_SEQUENCE BASE_OUTPUT
+#  clean_sample.rb -r RUN_NAME -l LANE_NAME -s SAMPLE_ID -b BASE_OUTPUT INPUT_SEQUENCE 
 #
 #  For help use clean_sample.rb -h
 #
@@ -23,6 +23,7 @@
 #  -r, --run NAME         Specify the name of run from which the sequence comes
 #  -l, --lane LANE        Specify the lane number/name from which the sequence comes
 #  -s, --sample ID        Specify the same name or id for the sequence
+#  -b, --base DIR         Specify the base folder for the output
 #  -L, --log FILE         Log stats to named file
 #
 # ==Author
@@ -60,10 +61,12 @@
 require 'rubygems'
 require 'optparse'
 require 'ostruct'
+require 'tmpdir'
 
 require 'omrf/fstream_logger'
 require 'omrf/time_decorator'
 require 'omrf/logged_external_command'
+require 'omrf/dir_extensions'
 
 class SampleCleanerApp
   VERSION       = "1.0.0"
@@ -80,15 +83,21 @@ class SampleCleanerApp
   def run
     if options_parsed? && options_valid?
       output_options(@stdout) if @options.verbose
-      
-      # do the work
+      Dir.tmpdir do
+        # do the work
+      end
     else
+      @stderr.puts("")
       output_usage(@stderr)
       exit(1)
     end
   end
   
   private
+  
+  def final_output_dir_path
+    @output_dir_path ||= File.join(@options.base_output_dir,"#{@options.sample}_#{@options.run_name}_#{@options.lane}")
+  end
   
   def output_help(out)
     output_version(out)
@@ -110,7 +119,7 @@ class SampleCleanerApp
   
   def output_usage(out)
     out.puts <<-EOF
-clean_sample.rb -r RUN_NAME -l LANE_NAME -s SAMPLE_ID INPUT_SEQUENCE BASE_OUTPUT
+clean_sample.rb -r RUN_NAME -l LANE_NAME -s SAMPLE_ID -b BASE_OUTPUT INPUT_SEQUENCE
 
 Options:
  -h, --help             Display this help message
@@ -119,6 +128,7 @@ Options:
  -r, --run NAME         Specify the name of run from which the sequence comes
  -l, --lane LANE        Specify the lane number/name from which the sequence comes
  -s, --sample ID        Specify the same name or id for the sequence
+ -b, --base DIR         Specify the base folder for the output
  -L, --log FILE         Log stats to named file
     
     EOF
@@ -126,7 +136,7 @@ Options:
   
   def set_default_options()
     @options = OpenStruct.new(
-      :run => nil,
+      :run_name => nil,
       :lane => nil,
       :sample => nil,
       :input_files  => nil,
@@ -137,7 +147,100 @@ Options:
   end
   
   def options_valid?
-    true
+    sequence_input_valid? &&
+    base_directory_valid? &&
+    run_name_valid? &&
+    lane_name_valid? &&
+    sample_id_valid? &&
+    final_output_dir_valid?
+  end
+  
+  def final_output_dir_valid?
+    if File.exists?(final_output_dir_path())
+      if !File.directory?(final_output_dir_path())
+        @stderr.puts("Final output location, #{final_output_dir_path()}, exists and is not a directory")
+        return false
+      elsif !File.writable?(final_output_dir_path())
+        @stderr.puts("Final output location, #{final_output_dir_path()}, is not writable")
+        return false
+      elsif !Dir.empty?(final_output_dir_path())
+        @stderr.puts("Final output location, #{final_output_dir_path}, should be empty")
+        return false
+      end
+      return true
+    end
+    Dir.mkdir(final_output_dir_path())
+    return true
+  end
+  
+  def run_name_valid?
+    valid_string_name?(@options.run_name,"run name")
+  end
+  
+  def lane_name_valid?
+    valid_string_name?(@options.lane,"lane name")
+  end
+  
+  def sample_id_valid?
+    valid_string_name?(@options.sample,"sample name")
+  end
+  
+  def valid_string_name?(key,mesg_name)
+    if nil == key
+      @stderr.puts("Missing #{mesg_name} option")
+      return false
+    end
+    key.strip!
+    key.downcase!
+    key.gsub!(/ /,'_')
+    
+    if key.empty? 
+      @sdterr.puts("Missing a full string for the #{mesg_name}")
+      return false
+    end
+    unless key =~ /^[a-zA-Z0-9_-]+$/
+      @stderr.puts("#{mesg_name} can only be a simple alpha numeric string")
+      return false
+    end
+    return true
+    
+  end
+  
+  def base_directory_valid?
+    if nil == @options.base_output_dir
+      @stderr.puts("Missing output base directory option")
+      return false
+    end
+    
+    return valid_dir?(@options.base_output_dir)
+  end
+  
+  def valid_dir?(dir)
+    unless File.directory?(dir)
+      @stderr.puts("Output base is not a directory")
+      return false
+    end
+    
+    unless File.writable?(dir)
+      @stderr.puts("Unable to write to output directory")
+      return false
+    end
+
+    return true
+  end
+  
+  def sequence_input_valid?
+    if nil == @options.input_files || 2 != @options.input_files.size
+      @stderr.puts "Two sequence files are required"
+      return false
+    end
+    @options.input_files.each do |f|
+      unless File.readable?(f)
+        @stderr.puts "Unable to read input sequence file: #{f}"
+        return false
+      end
+    end
+    return true
   end
   
   def options_parsed?
@@ -146,9 +249,29 @@ Options:
       opts.on('-h','--help') { output_help($stdout); exit(0) }
       opts.on('-V', '--verbose')    { @options.verbose = true }
       
+      opts.on("-r","--run", "=REQUIRED") do |run_name|
+        @options.run_name = run_name
+      end
+      
+      opts.on("-l","--lane", "=REQUIRED") do |lane_name|
+        @options.lane = lane_name
+      end
+      
+      opts.on("-s","--sample", "=REQUIRED") do |sample_id|
+        @options.sample = sample_id
+      end
+      
+      opts.on("-L","--log", "=REQUIRED") do |log_destination|
+        @options.log_file = log_destination
+      end
+
+      opts.on("-b","--base", "=REQUIRED") do |output_destination|
+        @options.base_output_dir = output_destination
+      end
     end
     
     opts.parse!(@args) rescue return false
+    @options.input_files = @args
     return true
   end
   
