@@ -172,7 +172,7 @@ class SampleCleanerApp
         f.print "\t#{k}"
       end
       f.puts
-      print "#{cleaned_sequence_base_file_name("{1,2}")}"
+      f.print "#{cleaned_sequence_base_file_name("{1,2}")}"
       keys.each do |k|
         f.print "\t#{@metrics[k]}"
       end
