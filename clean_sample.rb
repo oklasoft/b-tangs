@@ -117,6 +117,7 @@ class SampleCleanerApp
 
   def setup_logger()
     file = File.open(File.join(final_output_dir_path(),"log.txt"),"w")
+    file.sync = true
     @logger = OMRF::FstreamLogger.new(file,file)
     @logger.extend OMRF::TimeDecorator
   end
