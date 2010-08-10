@@ -188,7 +188,7 @@ class SampleCleanerApp
     @options.input_files.each_with_index do |infile,index|
       decompressor = case File.extname(infile)
         when /\.gz/
-          "gzcat"
+          "zcat"
         when /\.lzo/
           "lzop -dc"
         else
