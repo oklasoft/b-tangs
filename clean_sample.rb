@@ -82,8 +82,8 @@ class SampleCleanerApp
   CONFLICTS_FILE = 'conflicts.txt'
   DIDNT_YIELD_FILE = 'didnt_yields.txt'
   
-  VERSION       = "1.0.0"
-  REVISION_DATE = "2010-08-09"
+  VERSION       = "1.0.1"
+  REVISION_DATE = "2010-08-10"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
   COPYRIGHT     = "Copyright (c) 2010 Oklahoma Medical Research Foundation"
   
@@ -166,11 +166,12 @@ class SampleCleanerApp
   end
   
   def save_final_stats
-    keys = [:raw, :passed_cleaned, :rejected, :conflicted, :unknown, '% kept']
+    keys = [:raw, :passed_cleaned, :rejected, :conflicted, :unknown]
     File.open(File.join(final_output_dir_path(),'stats.txt'), 'w') do |f| 
       keys.each do |k|
         f.print "\t#{k}"
       end
+      f.print "\t% kept"
       f.puts
       f.print "#{cleaned_sequence_base_file_name("{1,2}")}"
       keys.each do |k|
