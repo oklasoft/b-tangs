@@ -120,7 +120,7 @@ module Cleaner
             alias line_key single_end_key
           end
         else
-          raise "Please specify type of key --key_type (paired, single, acgt_avg)"
+          raise "Please specify type of key --key_type (sep_joined_pairs, single)"
       end
       @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
         raise "Please supply both a --range_start= and --range_size= argument"
