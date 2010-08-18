@@ -7,12 +7,12 @@ module Cleaner
     
     def initialize(*args)
       super(*args)
-      if ("joined_pairs" == options[:key_type] || "sep_joined_pairs" == options[:key_type]) && !("joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format])
+      if ("sep_joined_pairs" == options[:key_type]) && !("joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format])
         raise "joined pairs must be used with joined_fastq or joined_qseq file format"
       end
       sequence_index()
       key_range()
-      parse_endness_key()
+      parse_key_type()
     end
     
     # given a start position and a length create a valid range
@@ -95,26 +95,6 @@ module Cleaner
       key
     end
     
-    def paired_end_key(parts)
-      "#{parts[@read_end_index]}_#{single_end_key(parts)}"
-    end
-
-    def paired_end_both_key(parts)
-      single_key = single_end_both_key(parts)
-      return nil if nil == single_key
-      "#{parts[@read_end_index]}_#{single_key}"
-    end
-    
-    def joined_pairs_both_key(parts)
-      key = []
-      @sequence_index.each_with_index do |seq_index, read_no|
-        sequence = parts[seq_index]
-        key << sequence[@key_range]
-        key << (sequence.reverse)[@key_range].reverse
-      end
-      return key.join("_")
-    end
-    
     def single_end_joined_pairs_both_key(parts)
       key = []
       @sequence_index.each_with_index do |seq_index, read_no|
@@ -124,28 +104,14 @@ module Cleaner
       return key
     end
     
-    def parse_endness_key
+    def parse_key_type()
       case options[:key_type]
-        when /paired/i
-          read_end_index()
-          if options[:both_ends] then
-            alias line_key paired_end_both_key
-          else
-            alias line_key paired_end_key
-          end
         when /sep_joined_pairs/i
           read_end_index()
           if options[:both_ends] then
             alias line_key single_end_joined_pairs_both_key
           else
-            alias line_key joined_pairs_single_end_key
-          end
-        when /joined_pairs/i
-          read_end_index()
-          if options[:both_ends] then
-            alias line_key joined_pairs_both_key
-          else
-            alias line_key joined_pairs_single_end_key
+            # TODO
           end
         when /single/i
           if options[:both_ends] then
