@@ -8,17 +8,13 @@ module Cleaner
     def initialize(*args)
       super(*args)
       parse_format()
-      @similarity ||= (options[:similarity].to_f || 0.90)
-      case options[:key_type]
-        when /acgt_avg/i
-          alias part_for_comparison sequence_tips_for_comparison
-        else
-          if "joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format]
-            alias part_for_comparison all_sequence_for_comparison_pair
-          else
-            alias part_for_comparison all_sequence_for_comparison
-          end
+
+      if "joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format]
+        alias part_for_comparison all_sequence_for_comparison_pair
+      else
+        alias part_for_comparison all_sequence_for_comparison
       end
+
       key_range()
     end
     
@@ -77,14 +73,6 @@ module Cleaner
     end
     
     
-    def sequence_tips_for_comparison(parts)
-      sequence = parts[@sequence_col]
-      front = sequence[@key_range]
-      back = ""
-      back = (sequence.reverse)[@key_range].reverse if options[:both_ends]
-      front + back
-    end
-    
     def all_sequence_for_comparison(parts)
       parts[@sequence_col]
     end
@@ -129,12 +117,7 @@ module Cleaner
     def finalize
       # strip the first element, since is the key
       values.map {|v| v.shift }
-      
-      # reject_all_but_top = false
-      # if key =~ /_possiblepcr/
-      #   reject_all_but_top = true unless (options[:trim_pcr_quality] || options[:trim_pcr_read])
-      # end
-      
+
       values.sort! do |a,b| 
         s = name_for(a) <=> name_for(b)
         if 0 == s
@@ -153,15 +136,9 @@ module Cleaner
       best_keys = joined_pairs_both_key(best)
       best_name = name_for(best)
       
-      # if 0.0 == @similarity
-      #   reject_all_but_top = true
-      #   # return
-      # end
-      # levenshtein_pattern = Amatch::Levenshtein.new(best_sequence)
-
       best_for = 0
       values.each do |v|
-        if matches_best(v,best_keys) #|| reject_all_but_top || levenshtein_pattern.similar(part_for_comparison(v)) >= @similarity then
+        if matches_best(v,best_keys) then
           yield [ v, "REJECT", best_name] if options[:include_rejects]
           best_for += 1
         else   
