@@ -5,6 +5,8 @@ module Btangs
 module Cleaner
   class CleanerMapper < Wukong::Streamer::LineStreamer
     
+    include OMRF::Btangs::Cleaner::OptionsParse
+    
     def initialize(*args)
       super(*args)
       if ("sep_joined_pairs" == options[:key_type]) && !("joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format])
@@ -122,8 +124,7 @@ module Cleaner
         else
           raise "Please specify type of key --key_type (sep_joined_pairs, single)"
       end
-      @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
-        raise "Please supply both a --range_start= and --range_size= argument"
+      key_range()
     end
     
   end #CleanerMapper

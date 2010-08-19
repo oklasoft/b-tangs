@@ -5,6 +5,8 @@ module Btangs
 module Cleaner
   class CleanerReducer < Wukong::Streamer::ListReducer
     
+    include OMRF::Btangs::Cleaner::OptionsParse
+    
     def initialize(*args)
       super(*args)
       parse_format()
@@ -61,12 +63,7 @@ module Cleaner
       end
       index
     end
-    
-    def key_range
-      @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
-        raise "Please supply both a --range_start= and --range_size= argument"
-    end
-    
+        
     def parse_key_range(start,length)
       return nil unless options[:range_start] && options[:range_size]
       Range.new(start.to_i, start.to_i+length.to_i,true)
