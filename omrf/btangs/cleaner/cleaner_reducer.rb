@@ -6,11 +6,13 @@ module Cleaner
   class CleanerReducer < Wukong::Streamer::ListReducer
     
     include OMRF::Btangs::Cleaner::OptionsParse
+    include OMRF::Btangs::Cleaner::Keys
     
     def initialize(*args)
       super(*args)
       parse_format()
       parse_key_range()
+      parse_key_type()
     end
 
     def quality_for_read(read)
@@ -35,18 +37,8 @@ module Cleaner
       @sequence_index.map {|sc| parts[sc]}.join("")
     end
     
-    def joined_pairs_both_key(parts)
-      key = []
-      @sequence_index.each_with_index do |seq_index, read_no|
-        sequence = parts[seq_index]
-        key << sequence[@key_range]
-        key << (sequence.reverse)[@key_range].reverse
-      end
-      key
-    end
-    
     def matches_best(read,best)
-      compare_keys = joined_pairs_both_key(read)
+      compare_keys = key_parts(read)
       
       return ( # A1+A2 == B1+B2
                best[0] == compare_keys[0] && best[1] == compare_keys[1] &&
@@ -86,7 +78,7 @@ module Cleaner
       best = values.delete_at(best_index)
       best_sequence = part_for_comparison(best)
       
-      best_keys = joined_pairs_both_key(best)
+      best_keys = key_parts(best)
       best_name = name_for(best)
       
       best_for = 0
