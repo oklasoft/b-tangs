@@ -9,95 +9,33 @@ module Cleaner
     
     def initialize(*args)
       super(*args)
-      if ("sep_joined_pairs" == options[:key_type]) && !("joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format])
-        raise "joined pairs must be used with joined_fastq or joined_qseq file format"
-      end
-      sequence_index()
-      key_range()
+      check_key_type_works_for_input_format!()
+      parse_format()
+      parse_key_range()
       parse_key_type()
     end
-    
-    # given a start position and a length create a valid range
-    def parse_key_range(start,length)
-      return nil unless options[:range_start] && options[:range_size]
-      Range.new(start.to_i, start.to_i+length.to_i,true)
-    end
-    
-    def parse_format(input_format)
-      case input_format
-        when /joined_qseq/i
-          @quality_col = [OMRF::Btangs::Cleaner::JOINED_QSEQ_QUALITY_INDEX, OMRF::Btangs::Cleaner::JOINED_QSEQ_QUALITY_INDEX + OMRF::Btangs::Cleaner::JOINED_QSEQ_SECOND_OFFSET]
-          [OMRF::Btangs::Cleaner::JOINED_QSEQ_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_QSEQ_SEQUENCE_INDEX + OMRF::Btangs::Cleaner::JOINED_QSEQ_SECOND_OFFSET]
-        when /joined_fastq/i
-          @quality_col = [ OMRF::Btangs::Cleaner::JOINED_FASTA_QUALITY_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_QUALITY_INDEX+OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET ]
-          [OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX+OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET]
-        when /qseq/i
-          @quality_col = OMRF::Btangs::Cleaner::QSEQ_QUALITY_INDEX
-          OMRF::Btangs::Cleaner::QSEQ_SEQUENCE_INDEX
-        when /fasta/i
-          @quality_col = OMRF::Btangs::Cleaner::FASTA_QUALITY_INDEX
-          OMRF::Btangs::Cleaner::FASTA_SEQUENCE_INDEX
-        else
-          nil
-      end
-    end
-    
-    def read_end_index
-      @read_end_index ||=
-      case sequence_index
-        when OMRF::Btangs::Cleaner::QSEQ_SEQUENCE_INDEX
-          OMRF::Btangs::Cleaner::QSEQ_READ_END_INDEX
-        when OMRF::Btangs::Cleaner::FASTA_SEQUENCE_INDEX
-          OMRF::Btangs::Cleaner::FASTA_READ_END_INDEX
-        when [OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX+OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET]
-          [OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX + OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET]
-        when [OMRF::Btangs::Cleaner::JOINED_QSEQ_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_QSEQ_SEQUENCE_INDEX+OMRF::Btangs::Cleaner::JOINED_QSEQ_SECOND_OFFSET]
-          [OMRF::Btangs::Cleaner::JOINED_QSEQ_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_QSEQ_SEQUENCE_INDEX + OMRF::Btangs::Cleaner::JOINED_QSEQ_SECOND_OFFSET]
-      end
-    end
-    
-    def key_range
-      @key_range ||= parse_key_range(options[:range_start],options[:range_size]) or
-        raise "Please supply both a --range_start= and --range_size= argument"
-    end
-    
-    def sequence_index
-      @sequence_index ||= parse_format(options[:input_format]) or
-        raise "Please let us know the input file format with --input_format= argument"
-    end
-    
-    
+
     #
     # For each line make the key(s) and emit them then for that line
     #
     def process(line)
       parts = line.chomp.split(/\t/)
-
-      key = line_key(parts)
-      return unless key
-
-      if key.kind_of?(Array)
-        key.each do |k|
-          yield [k, *parts]
-        end
-      else
-        yield [key, *parts]
+      keys = line_key(parts)
+      keys.each do |k|
+        yield [k, *parts]
       end
     end #process
     
-    def single_end_key(parts)
-      parts[@sequence_index][@key_range]
+    def single_end_keys(parts)
+      key = []
+      @sequence_index.each_with_index do |seq_index, read_no|
+        sequence = parts[seq_index]
+        key << "#{sequence[@key_range]}"
+      end
+      return key
     end
-    
-    def single_end_both_key(parts)
-      sequence = parts[@sequence_index]
-      front = sequence[@key_range]
-      back = (sequence.reverse)[@key_range].reverse
-      key = "#{front}_#{back}"
-      key
-    end
-    
-    def single_end_joined_pairs_both_key(parts)
+
+    def both_ends_keys(parts)
       key = []
       @sequence_index.each_with_index do |seq_index, read_no|
         sequence = parts[seq_index]
@@ -109,22 +47,21 @@ module Cleaner
     def parse_key_type()
       case options[:key_type]
         when /sep_joined_pairs/i
-          read_end_index()
           if options[:both_ends] then
-            alias line_key single_end_joined_pairs_both_key
+            alias line_key both_ends_keys
           else
             # TODO
+            alias line_key single_end_keys
           end
         when /single/i
           if options[:both_ends] then
-            alias line_key single_end_both_key
+            alias line_key both_ends_keys
           else
-            alias line_key single_end_key
+            alias line_key single_end_keys
           end
         else
           raise "Please specify type of key --key_type (sep_joined_pairs, single)"
       end
-      key_range()
     end
     
   end #CleanerMapper

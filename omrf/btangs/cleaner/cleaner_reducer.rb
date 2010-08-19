@@ -10,43 +10,10 @@ module Cleaner
     def initialize(*args)
       super(*args)
       parse_format()
-
-      if "joined_fastq" == options[:input_format] || "joined_qseq" == options[:input_format]
-        alias part_for_comparison all_sequence_for_comparison_pair
-      else
-        alias part_for_comparison all_sequence_for_comparison
-      end
-
-      key_range()
-    end
-    
-    def parse_format()
-      alias quality_for_read quality_for_read_single
-      case options[:input_format]
-        when /joined_fastq/i
-          @sequence_col = [OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX + OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET]
-          @quality_col = [OMRF::Btangs::Cleaner::JOINED_FASTA_QUALITY_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_QUALITY_INDEX + OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET]
-          alias quality_for_read quality_for_read_pair
-        when /joined_qseq/i
-          @sequence_col = [OMRF::Btangs::Cleaner::JOINED_QSEQ_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_QSEQ_SEQUENCE_INDEX + OMRF::Btangs::Cleaner::JOINED_QSEQ_SECOND_OFFSET]
-          @quality_col = [OMRF::Btangs::Cleaner::JOINED_QSEQ_QUALITY_INDEX, OMRF::Btangs::Cleaner::JOINED_QSEQ_QUALITY_INDEX + OMRF::Btangs::Cleaner::JOINED_QSEQ_SECOND_OFFSET]
-          alias quality_for_read quality_for_read_pair
-        when /qseq/i
-          @sequence_col = OMRF::Btangs::Cleaner::QSEQ_SEQUENCE_INDEX
-          @quality_col = OMRF::Btangs::Cleaner::QSEQ_QUALITY_INDEX
-        when /fasta/i
-          @sequence_col = OMRF::Btangs::Cleaner::FASTA_SEQUENCE_INDEX
-          @quality_col = OMRF::Btangs::Cleaner::FASTA_QUALITY_INDEX
-        else
-          raise "Please let us know the input file format with --input_format= argument"
-      end
-    end
-    
-    def quality_for_read_single(read)
-      read[@quality_col]
+      parse_key_range()
     end
 
-    def quality_for_read_pair(read)
+    def quality_for_read(read)
       @quality_col.map {|q| read[q]}.join("")
     end
 
@@ -63,24 +30,14 @@ module Cleaner
       end
       index
     end
-        
-    def parse_key_range(start,length)
-      return nil unless options[:range_start] && options[:range_size]
-      Range.new(start.to_i, start.to_i+length.to_i,true)
-    end
-    
-    
-    def all_sequence_for_comparison(parts)
-      parts[@sequence_col]
-    end
-    
-    def all_sequence_for_comparison_pair(parts)
-      @sequence_col.map {|sc| parts[sc]}.join("")
+
+    def part_for_comparison(parts)
+      @sequence_index.map {|sc| parts[sc]}.join("")
     end
     
     def joined_pairs_both_key(parts)
       key = []
-      @sequence_col.each_with_index do |seq_index, read_no|
+      @sequence_index.each_with_index do |seq_index, read_no|
         sequence = parts[seq_index]
         key << sequence[@key_range]
         key << (sequence.reverse)[@key_range].reverse
@@ -102,11 +59,10 @@ module Cleaner
     end
     
     def name_for(read)
-      case options[:input_format]
-        when /fast/i
-          read[0].split(/\//).first #strip of the end /read_number
-        when /qseq/i
-          read[0..6].join("_")
+      if INPUT_FORMATS[:fastq] == options[:input_format] || INPUT_FORMATS[:joined_fastq] == options[:input_format] 
+        read[0].split(/\//).first #strip of the end /read_number
+      elsif INPUT_FORMATS[:qseq] == options[:input_format] || INPUT_FORMATS[:joined_qseq] == options[:input_format]
+        read[0..6].join("_")
       end
     end
     
