@@ -222,10 +222,10 @@ class SampleCleanerApp
           "cat"
       end
       outfile = "#{index+1}.txt"
-      cmd = "#{decompressor} \"#{File.expand_path(infile)}\" | tr -d '\\r' > #{outfile}"
+      cmd = "#{decompressor} \"#{infile}\" | tr -d '\\r' > #{outfile}"
 
       wrap_command(cmd) do
-        output_user("Getting raw sequence in #{infile} with '#{cmd}'")        
+        output_user("Getting raw sequence in #{infile}")        
       end
       @options.input_files[index] = File.join(Dir.pwd,outfile)
     end
@@ -243,7 +243,7 @@ class SampleCleanerApp
       end
       return "unknown format with #{parts.size} fields in '#{line.chomp}' from #{@options.input_files.first}"
     end
-    return "unknown format with #{parts.size} fields in '#{line.chomp}' from #{@options.input_files.first}"
+    return "unknown format with NO fields in empty file from #{@options.input_files.first}"
   end
   
   def flatten_fastq()
@@ -328,7 +328,7 @@ class SampleCleanerApp
   end
   
   def join_single_reads_in_hadoop()
-    cmd += "hadoop fs -mv #{hadoop_input_dir} #{hadoop_joined_dir}"
+    cmd = "hadoop fs -mv #{hadoop_input_dir} #{hadoop_joined_dir}"
     wrap_command(cmd) do
       output_user("Renaming the reads to build the 'joined_reads'")
     end    
@@ -364,7 +364,7 @@ class SampleCleanerApp
   end
   
   def finalize_clean_single_reads_in_hadoop()
-    cmd += "hadoop fs -mv #{hadoop_cleaned_dir} #{hadoop_final_dir}"
+    cmd = "hadoop fs -mv #{hadoop_cleaned_dir} #{hadoop_final_dir}"
     wrap_command(cmd) do
       output_user("Renaming the cleaned reads to finalize the cleaned reads in hadoop")
     end
@@ -434,7 +434,7 @@ class SampleCleanerApp
   end
 
   def split_single_passings
-    file = cleaned_sequence_base_file_name(END_STYLES[:singel][:output_file_pair_numbers].first)
+    file = cleaned_sequence_base_file_name(END_STYLES[:single][:output_file_pair_numbers].first)
 
     cuts = if :qseq == @options.sequence_format
       [
@@ -521,7 +521,7 @@ class SampleCleanerApp
   end
   
   def final_output_dir_path
-    @options.final_output_dir_path ||= File.join(File.expand_path(@options.base_output_dir),"#{@options.sample}_#{@options.run_name}_#{@options.lane}")
+    @options.final_output_dir_path ||= File.join(@options.base_output_dir,"#{@options.sample}_#{@options.run_name}_#{@options.lane}")
   end
   
   def base_hadoop_path
@@ -664,7 +664,7 @@ Options:
       @stderr.puts("Missing output base directory option")
       return false
     end
-    
+    @options.base_output_dir = File.expand_path(@options.base_output_dir)
     return valid_dir?(@options.base_output_dir)
   end
   
@@ -687,11 +687,12 @@ Options:
       @stderr.puts "#{END_STYLES[@options.end_style][:files_required]} sequence file(s) are required"
       return false
     end
-    @options.input_files.each do |f|
+    @options.input_files.each_with_index do |f,i|
       unless File.readable?(f)
         @stderr.puts "Unable to read input sequence file: #{f}"
         return false
       end
+      @options.input_files[i] = File.expand_path(f)
     end
     @options.input_files.sort!
     return true
