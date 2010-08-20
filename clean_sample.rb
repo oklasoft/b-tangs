@@ -200,7 +200,7 @@ class SampleCleanerApp
       end
       f.print "\t% kept"
       f.puts
-      f.print "#{cleaned_sequence_base_file_name("{#{END_STYLES[@options.end_style[:output_file_pair_numbers.join(',')]]}}")}"
+      f.print "#{cleaned_sequence_base_file_name("{#{END_STYLES[@options.end_style][:output_file_pair_numbers.join(',')]}}")}"
       keys.each do |k|
         f.print "\t#{@metrics[k]}"
       end
@@ -606,7 +606,7 @@ Options:
   end
   
   def end_style_valid?
-    END_STYLES.keys.include(@options.end_style)
+    END_STYLES.keys.include?(@options.end_style)
   end
   
   def final_output_dir_valid?
@@ -684,8 +684,8 @@ Options:
   end
   
   def sequence_input_valid?
-    if nil == @options.input_files || END_STYLES[@options.end_style[:files_required]] != @options.input_files.size
-      @stderr.puts "#{END_STYLES[@options.end_style[:files_required]]} sequence file(s) are required"
+    if nil == @options.input_files || END_STYLES[@options.end_style][:files_required] != @options.input_files.size
+      @stderr.puts "#{END_STYLES[@options.end_style][:files_required]} sequence file(s) are required"
       return false
     end
     @options.input_files.each do |f|
