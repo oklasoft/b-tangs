@@ -5,7 +5,7 @@
 #
 # == Synopsis
 # A quick wrapper script for all the steps to run a NGS illumina sample through
-# the 'b-tangs' cleaning process to remove possible PCR artifacts
+# the 'btangs' cleaning process to remove possible PCR artifacts
 #
 # == Examples
 # To clean a qseq sample and save it as /Volumes/hts_raw/to_ipmort/1_cleaned_A_3/1_cleaned_A_3_{1,2}.qseq 
@@ -299,7 +299,7 @@ class SampleCleanerApp
   end
   
   def clean_reads_in_hadoop_with_btangs()
-    cmd = "b-tangs.rb --run=hadoop --reduce_tasks=#{@options.num_reducers} --range_start=0 --range_size=10 --similarity=1.0 --key_type=sep_joined_pairs --both_ends --include_rejects --input_format="
+    cmd = "btangs.rb --run=hadoop --reduce_tasks=#{@options.num_reducers} --range_start=0 --range_size=10 --similarity=1.0 --key_type=sep_joined_pairs --both_ends --include_rejects --input_format="
     cmd += if :qseq == @options.sequence_format
       "joined_qseq"
     elsif :fastq == @options.sequence_format
@@ -307,7 +307,7 @@ class SampleCleanerApp
     end
     cmd += " #{hadoop_joined_dir} #{hadoop_cleaned_dir}"
     wrap_command(cmd) do
-      output_user("Cleaning the joined_reads with b-tangs")
+      output_user("Cleaning the joined_reads with btangs")
     end
   end
   
@@ -452,7 +452,7 @@ class SampleCleanerApp
   end
   
   def base_hadoop_path
-    @base_hadoop_path ||= File.join(@options.sample,@options.run_name,@options.lane,"b-tangs_#{$$.to_s}")
+    @base_hadoop_path ||= File.join(@options.sample,@options.run_name,@options.lane,"btangs_#{$$.to_s}")
   end
   
   def hadoop_input_dir
