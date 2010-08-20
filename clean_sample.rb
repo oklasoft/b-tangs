@@ -24,6 +24,7 @@
 #  -l, --lane LANE        Specify the lane number/name from which the sequence comes
 #  -s, --sample ID        Specify the same name or id for the sequence
 #  -b, --base DIR         Specify the base folder for the output
+#  --single-end           Clean a single end sample, defaults to paired end
 #  -L, --log FILE         Log stats to named file
 #
 # ==Author
@@ -82,8 +83,34 @@ class SampleCleanerApp
   CONFLICTS_FILE = 'conflicts.txt'
   DIDNT_YIELD_FILE = 'didnt_yields.txt'
   
-  VERSION       = "1.0.1"
-  REVISION_DATE = "2010-08-10"
+  END_STYLES = 
+    {
+      :paired => 
+      {
+        :files_required => 2,
+        :output_file_pair_numbers => [1,2],
+        :btang_key => 'sep_joined_pairs',
+        :join_reads_method => :join_paired_reads_in_hadoop,
+        :finalize_clean_reads_method => :finalize_clean_paired_reads_in_hadoop,
+        :split_passings_method => :split_paired_passings,
+        :fastq_file_type => 'joined_fastq',
+        :qseq_file_type => 'joined_qseq'
+      },
+      :single =>
+        {
+          :files_required => 1, 
+          :output_file_pair_numbers => [0],
+          :btang_key => 'single',
+          :join_reads_method => :join_single_reads_in_hadoop,
+          :finalize_clean_reads_method => :finalize_clean_single_reads_in_hadoop,
+          :split_passings_method => :split_single_passings,
+          :fastq_file_type => 'fastq',
+          :qseq_file_type => 'qseq'
+        }
+    }
+  
+  VERSION       = "1.1.0-pre-01"
+  REVISION_DATE = "2010-08-19"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
   COPYRIGHT     = "Copyright (c) 2010 Oklahoma Medical Research Foundation"
   
@@ -133,7 +160,7 @@ class SampleCleanerApp
 
     try("Error detecting sequence type") {detect_sequence_type()}
     
-    output_user("Working with #{@options.sequence_format} files")
+    output_user("Working with #{@options.sequence_format} file(s)")
 
     try("Error flattening fastq") {flatten_fastq()} if :fastq == @options.sequence_format
 
@@ -173,7 +200,7 @@ class SampleCleanerApp
       end
       f.print "\t% kept"
       f.puts
-      f.print "#{cleaned_sequence_base_file_name("{1,2}")}"
+      f.print "#{cleaned_sequence_base_file_name("{#{END_STYLES[@options.end_style[:output_file_pair_numbers.join(',')]]}}")}"
       keys.each do |k|
         f.print "\t#{@metrics[k]}"
       end
@@ -236,7 +263,6 @@ class SampleCleanerApp
       @options.input_files[index] = File.join(Dir.pwd,outfile)      
     end
     return true
-    return ""
   end
   
   def count_input_sequence()
@@ -285,8 +311,12 @@ class SampleCleanerApp
       output_user("Putting #{files} into hadoop")
     end
   end
-  
+
   def join_reads_in_hadoop()
+    self.send(END_STYLES[@options.end_style][:join_reads_method])
+  end
+  
+  def join_paired_reads_in_hadoop()
     cmd = if :qseq == @options.sequence_format 
       "qseq_joiner.rb"
     elsif :fastq == @options.sequence_format
@@ -298,20 +328,31 @@ class SampleCleanerApp
     end
   end
   
+  def join_single_reads_in_hadoop()
+    cmd += "hadoop fs -mv #{hadoop_input_dir} #{hadoop_joined_dir}"
+    wrap_command(cmd) do
+      output_user("Renaming the reads to build the 'joined_reads'")
+    end    
+  end
+  
   def clean_reads_in_hadoop_with_btangs()
-    cmd = "btangs.rb --run=hadoop --reduce_tasks=#{@options.num_reducers} --range_start=0 --range_size=10 --similarity=1.0 --key_type=sep_joined_pairs --both_ends --include_rejects --input_format="
+    cmd = "btangs.rb --run=hadoop --reduce_tasks=#{@options.num_reducers} --range_start=0 --range_size=10  --key_type=#{END_STYLES[@options.end_style][:btang_key]} --both_ends --include_rejects --input_format="
     cmd += if :qseq == @options.sequence_format
-      "joined_qseq"
+      END_STYLES[@options.end_style][:qseq_file_type]
     elsif :fastq == @options.sequence_format
-      "joined_fastq"
+      END_STYLES[@options.end_style][:fastq_file_type]
     end
     cmd += " #{hadoop_joined_dir} #{hadoop_cleaned_dir}"
     wrap_command(cmd) do
-      output_user("Cleaning the joined_reads with btangs")
+      output_user("Cleaning the reads with btangs")
     end
   end
   
   def finalize_clean_reads_in_hadoop()
+    self.send(END_STYLES[@options.end_style][:finalize_clean_reads_method])
+  end
+  
+  def finalize_clean_paired_reads_in_hadoop()
     cmd = if :qseq == @options.sequence_format 
       "joined_qseq_finisher.rb"
     elsif :fastq == @options.sequence_format
@@ -320,6 +361,13 @@ class SampleCleanerApp
     cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} #{hadoop_cleaned_dir} #{hadoop_final_dir}"
     wrap_command(cmd) do
       output_user("Finalizing the cleaned reads in hadoop")
+    end
+  end
+  
+  def finalize_clean_single_reads_in_hadoop()
+    cmd += "hadoop fs -mv #{hadoop_cleaned_dir} #{hadoop_final_dir}"
+    wrap_command(cmd) do
+      output_user("Renaming the cleaned reads to finalize the cleaned reads in hadoop")
     end
   end
   
@@ -357,8 +405,12 @@ class SampleCleanerApp
   end
   
   def split_passings
-    pair_1_file = cleaned_sequence_base_file_name(1)
-    pair_2_file = cleaned_sequence_base_file_name(2)
+    self.send(END_STYLES[@options.end_style][:split_passings_method])
+  end
+  
+  def split_paired_passings
+    pair_1_file = cleaned_sequence_base_file_name(END_STYLES[:paired][:output_file_pair_numbers].first)
+    pair_2_file = cleaned_sequence_base_file_name(END_STYLES[:paired][:output_file_pair_numbers].last)
     cuts = if :qseq == @options.sequence_format
       [
         "cut -f -11 > #{File.join(final_output_dir_path(),pair_1_file)}",
@@ -380,7 +432,30 @@ class SampleCleanerApp
     wrap_command("bash #{split_passing}") do
       output_user("Splitting the passing read to the two pair files #{pair_1_file} & #{pair_2_file}")
     end
-    
+  end
+
+  def split_single_passings
+    file = cleaned_sequence_base_file_name(END_STYLES[:singel][:output_file_pair_numbers].first)
+
+    cuts = if :qseq == @options.sequence_format
+      [
+        "cut -f -11 > #{File.join(final_output_dir_path(),file)}"
+      ]
+    elsif :fastq == @options.sequence_format
+      [
+        %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(final_output_dir_path(),file)}}
+      ]
+    end
+    cmd = "fgrep -h PASS part-* | #{cuts[0]}"
+  
+    split_passing = File.join(Dir.pwd,"split_passing.sh")
+    File.open(split_passing,"w") do |f|
+      f.puts "/bin/bash"
+      f.puts cmd
+    end
+    wrap_command("bash #{split_passing}") do
+      output_user("Saving the passing read to the single file #{file}")
+    end
   end
   
   def count_output_sequences()
@@ -395,20 +470,19 @@ class SampleCleanerApp
     @metrics[:rejected] = count_lines(File.join(final_output_dir_path(),REJECT_FILE))
     output_user("There were #{@metrics[:rejected]} rejects")
     
-    cleaned_a = count_lines(File.join(final_output_dir_path(),cleaned_sequence_base_file_name(1)))
-    cleaned_b = count_lines(File.join(final_output_dir_path(),cleaned_sequence_base_file_name(2)))
+    
+    cleaned_file_counts = END_STYLES[@options.end_style][:output_file_pair_numbers].map {|i| count_lines(File.join(final_output_dir_path(),cleaned_sequence_base_file_name(i)))}
     
     if :fastq == @options.sequence_format
-      cleaned_a /= 4
-      cleaned_b /= 4
+      cleaned_file_counts = cleaned_file_counts.map {|c| c/4}
     end
     
-    if cleaned_a != cleaned_b
-      return "There were different number of cleaned in the two pairs #{cleaned_a} vs #{cleaned_b}"
+    if 1 != cleaned_file_counts.uniq.size
+      return "There were different number of cleaned in the cleaned files #{cleaned_file_counts.join(";")}"
     end
     
-    output_user("There were #{cleaned_a} passing")
-    @metrics[:passed_cleaned] = cleaned_a
+    output_user("There were #{cleaned_file_counts.first} passing")
+    @metrics[:passed_cleaned] = cleaned_file_counts.first
 
     return true
   end
@@ -502,6 +576,7 @@ Options:
  -s, --sample ID        Specify the same name or id for the sequence
  -b, --base DIR         Specify the base folder for the output
  -L, --log FILE         Log stats to named file
+ --single-end           Clean a single end sample
     
     EOF
   end
@@ -515,17 +590,23 @@ Options:
       :base_output_dir => nil,
       :verbose => false,
       :log_file => nil,
-      :num_reducers => 30
+      :num_reducers => 30,
+      :end_style => :paired
     )
   end
   
   def options_valid?
+    end_style_valid? &&
     sequence_input_valid? &&
     base_directory_valid? &&
     run_name_valid? &&
     lane_name_valid? &&
     sample_id_valid? &&
     final_output_dir_valid?
+  end
+  
+  def end_style_valid?
+    END_STYLES.keys.include(@options.end_style)
   end
   
   def final_output_dir_valid?
@@ -603,8 +684,8 @@ Options:
   end
   
   def sequence_input_valid?
-    if nil == @options.input_files || 2 != @options.input_files.size
-      @stderr.puts "Two sequence files are required"
+    if nil == @options.input_files || END_STYLES[@options.end_style[:files_required]] != @options.input_files.size
+      @stderr.puts "#{END_STYLES[@options.end_style[:files_required]]} sequence file(s) are required"
       return false
     end
     @options.input_files.each do |f|
@@ -622,6 +703,8 @@ Options:
       opts.on('-v','--version') { output_version($stdout); exit(0) }
       opts.on('-h','--help') { output_help($stdout); exit(0) }
       opts.on('-V', '--verbose')    { @options.verbose = true }
+
+      opts.on('--single-end')    { @options.end_style = :single }
       
       opts.on("-r","--run", "=REQUIRED") do |run_name|
         @options.run_name = run_name
