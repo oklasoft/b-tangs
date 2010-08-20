@@ -84,17 +84,17 @@ module Cleaner
       best_for = 0
       values.each do |v|
         if matches_best(v,best_keys) then
-          yield [ v, "REJECT", best_name] if options[:include_rejects]
+          yield [ v, ReadStatus::REJECT, best_name] if options[:include_rejects]
           best_for += 1
         else   
-          yield [ v, "PASS_DIDNT_MATCH", best_name ]
+          yield [ v, ReadStatus::PASS_DIDNT_MATCH, best_name ]
         end
       end #values
       
       best_msg = if best_for > 0 then
-        ["PASS_BEST_FOR", best_for]
+        [ReadStatus::PASS_BEST_FOR, best_for]
       else
-        ["PASS_ONLY","ALONE"]
+        [ReadStatus::PASS_ONLY,"ALONE"]
       end
       yield [ best + best_msg ]
 

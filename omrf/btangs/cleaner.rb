@@ -4,6 +4,7 @@ require 'omrf/btangs/string_phred_extensions'
 
 require 'omrf/btangs/cleaner/options_parse'
 require 'omrf/btangs/cleaner/keys'
+require 'omrf/btangs/read_status'
 require 'omrf/btangs/cleaner/cleaner_mapper'
 require 'omrf/btangs/cleaner/cleaner_reducer'
 
