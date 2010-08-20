@@ -200,7 +200,7 @@ class SampleCleanerApp
       end
       f.print "\t% kept"
       f.puts
-      f.print "#{cleaned_sequence_base_file_name("{#{END_STYLES[@options.end_style][:output_file_pair_numbers].join(',')]}}")}"
+      f.print "#{cleaned_sequence_base_file_name("{#{END_STYLES[@options.end_style][:output_file_pair_numbers].join(',')}}")}"
       keys.each do |k|
         f.print "\t#{@metrics[k]}"
       end
