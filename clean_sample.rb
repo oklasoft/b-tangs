@@ -225,7 +225,7 @@ class SampleCleanerApp
       cmd = "#{decompressor} \"#{File.expand_path(infile)}\" | tr -d '\\r' > #{outfile}"
 
       wrap_command(cmd) do
-        output_user("Getting raw sequence in #{infile}")        
+        output_user("Getting raw sequence in #{infile} with '#{cmd}'")        
       end
       @options.input_files[index] = File.join(Dir.pwd,outfile)
     end
@@ -237,14 +237,13 @@ class SampleCleanerApp
     IO.foreach(@options.input_files.first) do |line|
       parts = line.chomp.split(/\t/)
       if NUMBER_FASTQ_FIELDS == parts.size
-        @options.sequence_format = :fastq
+        return @options.sequence_format = :fastq
       elsif NUMBER_QSEQ_FIELDS == parts.size
-        @options.sequence_format = :qseq
-      else
-        return "unknown format with #{parts.size} fields in '#{line.chomp}' from #{@options.input_files.first}"
+        return @options.sequence_format = :qseq
       end
-      break
+      return "unknown format with #{parts.size} fields in '#{line.chomp}' from #{@options.input_files.first}"
     end
+    return "unknown format with #{parts.size} fields in '#{line.chomp}' from #{@options.input_files.first}"
   end
   
   def flatten_fastq()
