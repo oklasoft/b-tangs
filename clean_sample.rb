@@ -222,7 +222,7 @@ class SampleCleanerApp
           "cat"
       end
       outfile = "#{index+1}.txt"
-      cmd = "#{decompressor} \"#{infile}\" | tr -d '\\r' > #{outfile}"
+      cmd = "#{decompressor} \"#{File.expand_path(infile)}\" | tr -d '\\r' > #{outfile}"
 
       wrap_command(cmd) do
         output_user("Getting raw sequence in #{infile}")        
@@ -522,7 +522,7 @@ class SampleCleanerApp
   end
   
   def final_output_dir_path
-    @options.final_output_dir_path ||= File.join(@options.base_output_dir,"#{@options.sample}_#{@options.run_name}_#{@options.lane}")
+    @options.final_output_dir_path ||= File.join(File.expand_path(@options.base_output_dir),"#{@options.sample}_#{@options.run_name}_#{@options.lane}")
   end
   
   def base_hadoop_path
