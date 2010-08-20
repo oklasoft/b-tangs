@@ -270,7 +270,7 @@ class SampleCleanerApp
     @options.input_files.each do |input_file|
       lines << count_lines(input_file)
     end
-    if lines[0] != lines[1]
+    if 1 != lines.uniq
       return "different number of lines in '#{@options.input_files.join(",")}', #{lines.join(":")}"
     elsif 0 == lines[0] 
       return "No lines in input files '#{@options.input_files.join(",")}"
