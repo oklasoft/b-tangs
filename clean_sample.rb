@@ -103,7 +103,7 @@ class SampleCleanerApp
           :files_required => 1, 
           :output_file_pair_numbers => [0],
           :btang_key => 'single',
-          :btang_key_size => 20,
+          :btang_key_size => 10,
           :btang_key_ends => '',
           :join_reads_method => :join_single_reads_in_hadoop,
           :finalize_clean_reads_method => :finalize_clean_single_reads_in_hadoop,
@@ -113,7 +113,7 @@ class SampleCleanerApp
         }
     }
   
-  VERSION       = "1.2.0-pre-01"
+  VERSION       = "1.2.0-pre-02"
   REVISION_DATE = "2010-08-19"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
   COPYRIGHT     = "Copyright (c) 2010 Oklahoma Medical Research Foundation"
