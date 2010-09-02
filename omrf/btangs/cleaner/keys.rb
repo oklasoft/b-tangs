@@ -13,7 +13,7 @@ module Cleaner
     end
     
     def front_end_keys(parts)
-      key_parts = both_end_key_parts(parts)
+      key_parts = front_end_key_parts(parts)
       return key_parts
     end
 
