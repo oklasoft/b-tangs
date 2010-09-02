@@ -90,6 +90,8 @@ class SampleCleanerApp
         :files_required => 2,
         :output_file_pair_numbers => [1,2],
         :btang_key => 'sep_joined_pairs',
+        :btang_key_size => 10,
+        :btang_key_ends => '--both_ends',
         :join_reads_method => :join_paired_reads_in_hadoop,
         :finalize_clean_reads_method => :finalize_clean_paired_reads_in_hadoop,
         :split_passings_method => :split_paired_passings,
@@ -101,6 +103,8 @@ class SampleCleanerApp
           :files_required => 1, 
           :output_file_pair_numbers => [0],
           :btang_key => 'single',
+          :btang_key_size => 20,
+          :btang_key_ends => '',
           :join_reads_method => :join_single_reads_in_hadoop,
           :finalize_clean_reads_method => :finalize_clean_single_reads_in_hadoop,
           :split_passings_method => :split_single_passings,
@@ -109,7 +113,7 @@ class SampleCleanerApp
         }
     }
   
-  VERSION       = "1.1.0-pre-01"
+  VERSION       = "1.2.0-pre-01"
   REVISION_DATE = "2010-08-19"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
   COPYRIGHT     = "Copyright (c) 2010 Oklahoma Medical Research Foundation"
@@ -335,7 +339,7 @@ class SampleCleanerApp
   end
   
   def clean_reads_in_hadoop_with_btangs()
-    cmd = "btangs.rb --run=hadoop --reduce_tasks=#{@options.num_reducers} --range_start=0 --range_size=10  --key_type=#{END_STYLES[@options.end_style][:btang_key]} --both_ends --include_rejects --input_format="
+    cmd = "btangs.rb --run=hadoop --reduce_tasks=#{@options.num_reducers} --range_start=0 --range_size=#{END_STYLES[@options.end_style][:btang_key_size]}  --key_type=#{END_STYLES[@options.end_style][:btang_key]} #{END_STYLES[@options.end_style][:btang_key_ends]} --include_rejects --input_format="
     cmd += if :qseq == @options.sequence_format
       END_STYLES[@options.end_style][:qseq_file_type]
     elsif :fastq == @options.sequence_format
