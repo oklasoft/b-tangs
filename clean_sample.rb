@@ -130,7 +130,7 @@ class SampleCleanerApp
       setup_logger()
       
       return_dir = Dir.pwd
-      Dir.mktmpdir do |tmp_dir|
+      Dir.mktmpdir(nil,File.join(final_output_dir_path()) do |tmp_dir|
         Dir.chdir(tmp_dir)
         clean_sample()
         Dir.chdir(return_dir)
