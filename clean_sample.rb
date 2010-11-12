@@ -103,7 +103,7 @@ class SampleCleanerApp
           :files_required => 1, 
           :output_file_pair_numbers => [0],
           :btang_key => 'single',
-          :btang_key_size => 15,
+          :btang_key_size => 25,
           :btang_key_ends => '',
           :join_reads_method => :join_single_reads_in_hadoop,
           :finalize_clean_reads_method => :finalize_clean_single_reads_in_hadoop,
@@ -130,7 +130,9 @@ class SampleCleanerApp
       setup_logger()
       
       return_dir = Dir.pwd
-      Dir.mktmpdir do |tmp_dir|
+      tmp_base = File.join(final_output_dir_path())
+      tmp_base = nil
+      Dir.mktmpdir(nil,tmp_base) do |tmp_dir|
         Dir.chdir(tmp_dir)
         clean_sample()
         Dir.chdir(return_dir)
@@ -593,7 +595,7 @@ Options:
       :base_output_dir => nil,
       :verbose => false,
       :log_file => nil,
-      :num_reducers => 30,
+      :num_reducers => 45,
       :end_style => :paired
     )
   end
