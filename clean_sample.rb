@@ -113,8 +113,8 @@ class SampleCleanerApp
         }
     }
   
-  VERSION       = "1.2.0-pre-04"
-  REVISION_DATE = "2010-08-19"
+  VERSION       = "1.2.0"
+  REVISION_DATE = "2010-12-14"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
   COPYRIGHT     = "Copyright (c) 2010 Oklahoma Medical Research Foundation"
   
