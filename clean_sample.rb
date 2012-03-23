@@ -335,7 +335,7 @@ class SampleCleanerApp
     elsif :fastq == @options.sequence_format
       "flat_fasta_joiner.rb"
     elsif :fastq18 == @options.sequence_format
-      extra_opts = "--sequence_version=#{optsion.sequence_version}"
+      extra_opts = "--fastq_version=#{optsion.sequence_version}"
       "flat_fasta_joiner.rb"
     end
     cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} --single_line --allow_both_fail #{extra_opts} #{hadoop_input_dir} #{hadoop_joined_dir}"
