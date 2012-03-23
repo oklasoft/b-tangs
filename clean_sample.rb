@@ -96,6 +96,7 @@ class SampleCleanerApp
         :finalize_clean_reads_method => :finalize_clean_paired_reads_in_hadoop,
         :split_passings_method => :split_paired_passings,
         :fastq_file_type => 'joined_fastq',
+        :fastq18_file_type => 'joined_fastq18',
         :qseq_file_type => 'joined_qseq'
       },
       :single =>
@@ -356,6 +357,8 @@ class SampleCleanerApp
       END_STYLES[@options.end_style][:qseq_file_type]
     elsif :fastq == @options.sequence_format
       END_STYLES[@options.end_style][:fastq_file_type]
+    elsif :fastq18 == @options.sequence_format
+      END_STYLES[@options.end_style][:fastq18_file_type]
     end
     cmd += " #{hadoop_joined_dir} #{hadoop_cleaned_dir}"
     wrap_command(cmd) do
