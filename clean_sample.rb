@@ -168,7 +168,9 @@ class SampleCleanerApp
     
     output_user("Working with #{@options.sequence_format} file(s)")
 
-    try("Error flattening fastq") {flatten_fastq()} if :fastq == @options.sequence_format
+    if [:fastq,:fastq18].include?(@options.sequence_format)
+      try("Error flattening fastq") {flatten_fastq()} 
+    end
 
     try("Error counting raw") {count_input_sequence()}
 
@@ -243,7 +245,11 @@ class SampleCleanerApp
     IO.foreach(@options.input_files.first) do |line|
       parts = line.chomp.split(/\t/)
       if NUMBER_FASTQ_FIELDS == parts.size
-        return @options.sequence_format = :fastq
+        if parts.first.split(/\s+/).size > 1 then
+          return @options.sequence_format = :fastq18
+        else
+          return @options.sequence_format = :fastq
+        end
       elsif NUMBER_QSEQ_FIELDS == parts.size
         return @options.sequence_format = :qseq
       end
@@ -322,12 +328,16 @@ class SampleCleanerApp
   end
   
   def join_paired_reads_in_hadoop()
+    extra_opts = ""
     cmd = if :qseq == @options.sequence_format 
       "qseq_joiner.rb"
     elsif :fastq == @options.sequence_format
       "flat_fasta_joiner.rb"
+    elsif :fastq18 == @options.sequence_format
+      extra_opts = "--sequence_version=#{optsion.sequence_version}"
+      "flat_fasta_joiner.rb"
     end
-    cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} --single_line --allow_both_fail #{hadoop_input_dir} #{hadoop_joined_dir}"
+    cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} --single_line --allow_both_fail #{extra_opts} #{hadoop_input_dir} #{hadoop_joined_dir}"
     wrap_command(cmd) do
       output_user("Joining the reads to build the 'joined_reads'")
     end
@@ -523,6 +533,7 @@ class SampleCleanerApp
   
   def cleaned_sequence_base_file_name(pair_number)
     extension = @options.sequence_format
+    extension = :fastq if :fastq18 == extension
     "#{@options.sample}_cleaned_#{@options.run_name}_#{@options.lane}_#{pair_number}.#{extension}"
   end
   
