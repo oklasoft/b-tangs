@@ -6,14 +6,15 @@ module Cleaner
     INPUT_FORMATS =
     {
       :joined_fastq => "joined_fastq",
+      :joined_fastq18 => "joined_fastq18",
       :joined_qseq => "joined_qseq",
       :qseq => "qseq",
       :fastq => "fastq"
     }
     
     def check_key_type_works_for_input_format!()
-      if ("sep_joined_pairs" == options[:key_type]) && !(INPUT_FORMATS[:joined_fastq] == options[:input_format] || INPUT_FORMATS[:joined_qseq] == options[:input_format])
-        raise "joined pairs must be used with #{INPUT_FORMATS[:joined_qseq]} or #{INPUT_FORMATS[:joined_fastq]} file format"
+      if ("sep_joined_pairs" == options[:key_type]) && !(INPUT_FORMATS[:joined_fastq18] == options[:input_format] || INPUT_FORMATS[:joined_fastq] == options[:input_format] || INPUT_FORMATS[:joined_qseq] == options[:input_format])
+        raise "joined pairs must be used with #{INPUT_FORMATS[:joined_qseq]} or #{INPUT_FORMATS[:joined_fastq18]} or #{INPUT_FORMATS[:joined_fastq]} file format"
       end
     end
     
@@ -27,6 +28,9 @@ module Cleaner
     def parse_format()
       case options[:input_format]
         when INPUT_FORMATS[:joined_fastq]
+          @sequence_index = [OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX + OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET]
+          @quality_col = [OMRF::Btangs::Cleaner::JOINED_FASTA_QUALITY_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_QUALITY_INDEX + OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET]
+        when INPUT_FORMATS[:joined_fastq18]
           @sequence_index = [OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_SEQUENCE_INDEX + OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET]
           @quality_col = [OMRF::Btangs::Cleaner::JOINED_FASTA_QUALITY_INDEX, OMRF::Btangs::Cleaner::JOINED_FASTA_QUALITY_INDEX + OMRF::Btangs::Cleaner::JOINED_FASTA_SECOND_OFFSET]
         when INPUT_FORMATS[:joined_qseq]
