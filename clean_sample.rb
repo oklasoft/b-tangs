@@ -371,12 +371,16 @@ class SampleCleanerApp
   end
   
   def finalize_clean_paired_reads_in_hadoop()
+    extra_opts = ""
     cmd = if :qseq == @options.sequence_format 
       "joined_qseq_finisher.rb"
     elsif :fastq == @options.sequence_format
       "joined_fastq_finisher.rb"
+    elsif :fastq18 == @options.sequence_format
+      extra_opts = "--fastq_version=fastq18"
+      "joined_fastq_finisher.rb"
     end
-    cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} #{hadoop_cleaned_dir} #{hadoop_final_dir}"
+    cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} #{extra_opts} #{hadoop_cleaned_dir} #{hadoop_final_dir}"
     wrap_command(cmd) do
       output_user("Finalizing the cleaned reads in hadoop")
     end
