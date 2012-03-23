@@ -11,7 +11,11 @@ module FlatFastaJoiner
     def process line
       parts = line.chomp.split(/\t/)
       # the name has the /number, we need to remove it
-      key = parts[0].split(/\//).first
+      key = if "fastq18" == options[:fastq_version]
+              parts[0].split(/\s/).first
+            else
+              parts[0].split(/\//).first
+            end
       yield [key, *parts]
     end
 
