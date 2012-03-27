@@ -114,10 +114,10 @@ class SampleCleanerApp
         }
     }
   
-  VERSION       = "1.2.0"
-  REVISION_DATE = "2010-12-14"
+  VERSION       = "1.3.0"
+  REVISION_DATE = "2012-03-27"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
-  COPYRIGHT     = "Copyright (c) 2010 Oklahoma Medical Research Foundation"
+  COPYRIGHT     = "Copyright (c) 2012 Oklahoma Medical Research Foundation"
   
   def initialize(args,ios = {})
     @args = args
