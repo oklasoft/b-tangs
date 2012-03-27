@@ -335,7 +335,7 @@ class SampleCleanerApp
     elsif :fastq == @options.sequence_format
       "flat_fasta_joiner.rb"
     elsif :fastq18 == @options.sequence_format
-      extra_opts = "--fastq_version=#{@options.sequence_version}"
+      extra_opts = "--fastq_version=#{@options.sequence_format}"
       "flat_fasta_joiner.rb"
     end
     cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} --single_line --allow_both_fail #{extra_opts} #{hadoop_input_dir} #{hadoop_joined_dir}"
@@ -463,7 +463,7 @@ class SampleCleanerApp
       [
         "cut -f -11 > #{File.join(final_output_dir_path(),file)}"
       ]
-    elsif :fastq == @options.sequence_format
+    elsif :fastq == @options.sequence_format || :fastq18 == @options.sequence_format
       [
         %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(final_output_dir_path(),file)}}
       ]
@@ -495,7 +495,7 @@ class SampleCleanerApp
     
     cleaned_file_counts = END_STYLES[@options.end_style][:output_file_pair_numbers].map {|i| count_lines(File.join(final_output_dir_path(),cleaned_sequence_base_file_name(i)))}
     
-    if :fastq == @options.sequence_format
+    if :fastq == @options.sequence_format || :fastq18 == @options.sequence_format
       cleaned_file_counts = cleaned_file_counts.map {|c| c/4}
     end
     
