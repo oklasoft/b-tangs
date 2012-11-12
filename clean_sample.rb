@@ -114,8 +114,8 @@ class SampleCleanerApp
         }
     }
   
-  VERSION       = "1.3.0"
-  REVISION_DATE = "2012-03-27"
+  VERSION       = "1.4.0"
+  REVISION_DATE = "2012-11-12"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
   COPYRIGHT     = "Copyright (c) 2012 Oklahoma Medical Research Foundation"
   
@@ -337,6 +337,9 @@ class SampleCleanerApp
     elsif :fastq18 == @options.sequence_format
       extra_opts = "--fastq_version=#{@options.sequence_format}"
       "flat_fasta_joiner.rb"
+    end
+    if @options.trim_end
+      cmd += " --trim_off=#{@options.trim_end}"
     end
     cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} --single_line --allow_both_fail #{extra_opts} #{hadoop_input_dir} #{hadoop_joined_dir}"
     wrap_command(cmd) do
@@ -599,6 +602,7 @@ Options:
  -s, --sample ID        Specify the same name or id for the sequence
  -b, --base DIR         Specify the base folder for the output
  -L, --log FILE         Log stats to named file
+ --trim-end NUM         Trimm NUM bases from the end of each read (only for paired end fastq)
  --single-end           Clean a single end sample
     
     EOF
@@ -748,6 +752,10 @@ Options:
 
       opts.on("-b","--base", "=REQUIRED") do |output_destination|
         @options.base_output_dir = output_destination
+      end
+
+      opts.on("--trim-end NUM", Fixnum) do |bases_to_trim|
+        @options.trim_end = bases_to_trim
       end
     end
     
