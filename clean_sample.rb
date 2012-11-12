@@ -754,7 +754,7 @@ Options:
         @options.base_output_dir = output_destination
       end
 
-      opts.on("--trim-end NUM", Fixnum) do |bases_to_trim|
+      opts.on("--trim-end NUM") do |bases_to_trim|
         @options.trim_end = bases_to_trim
       end
     end
