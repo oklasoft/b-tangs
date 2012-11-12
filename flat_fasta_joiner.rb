@@ -16,6 +16,12 @@ module FlatFastaJoiner
             else
               parts[0].split(/\//).first
             end
+      if options[:trim_off] && options[:trim_off].to_i > 0
+        cut = -1 - options[:trim_off].to_i
+        [1,3].each do |i|
+          parts[i] = parts[i][0 .. cut]
+        end
+      end
       yield [key, *parts]
     end
 
