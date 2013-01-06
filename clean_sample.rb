@@ -26,6 +26,8 @@
 #  -b, --base DIR         Specify the base folder for the output
 #  --single-end           Clean a single end sample, defaults to paired end
 #  -L, --log FILE         Log stats to named file
+#  --limit NUM            Limit the total number of cleans to NUM
+#  --lock-host NAME       The hostname for the redis server for the distributed locking
 #
 # ==Author
 #  Stuart Glenn <Stuart-Glenn@omrf.org>
@@ -129,6 +131,7 @@ class SampleCleanerApp
   def run
     if options_parsed? && options_valid?
       setup_logger()
+      setup_lock()
       
       return_dir = Dir.pwd
       tmp_base = File.join(final_output_dir_path())
@@ -154,6 +157,21 @@ class SampleCleanerApp
     file.sync = true
     @logger = OMRF::FstreamLogger.new(file,file)
     @logger.extend OMRF::TimeDecorator
+  end
+
+  def setup_lock()
+    return unless @options.lock_limit
+    @lock = Redis::Semaphore(:btangs_lock,@options.lock_limit,:host => @options.lock_host)
+  end
+
+  def with_lock(&block)
+    if @lock
+      @lock.lock do
+        yield
+      end
+    else
+      yield
+    end
   end
   
   def clean_sample()
@@ -342,8 +360,10 @@ class SampleCleanerApp
       cmd += " --trim_off=#{@options.trim_end}"
     end
     cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} --single_line --allow_both_fail #{extra_opts} #{hadoop_input_dir} #{hadoop_joined_dir}"
-    wrap_command(cmd) do
-      output_user("Joining the reads to build the 'joined_reads'")
+    with_lock() do
+      wrap_command(cmd) do
+        output_user("Joining the reads to build the 'joined_reads'")
+      end
     end
   end
   
@@ -364,8 +384,10 @@ class SampleCleanerApp
       END_STYLES[@options.end_style][:fastq18_file_type]
     end
     cmd += " #{hadoop_joined_dir} #{hadoop_cleaned_dir}"
-    wrap_command(cmd) do
-      output_user("Cleaning the reads with btangs")
+    with_lock() do
+      wrap_command(cmd) do
+        output_user("Cleaning the reads with btangs")
+      end
     end
   end
   
@@ -384,8 +406,10 @@ class SampleCleanerApp
       "joined_fastq_finisher.rb"
     end
     cmd += " --run=hadoop --reduce_tasks=#{@options.num_reducers} #{extra_opts} #{hadoop_cleaned_dir} #{hadoop_final_dir}"
-    wrap_command(cmd) do
-      output_user("Finalizing the cleaned reads in hadoop")
+    with_lock() do
+      wrap_command(cmd) do
+        output_user("Finalizing the cleaned reads in hadoop")
+      end
     end
   end
   
@@ -604,6 +628,8 @@ Options:
  -L, --log FILE         Log stats to named file
  --trim-end NUM         Trimm NUM bases from the end of each read (only for paired end fastq)
  --single-end           Clean a single end sample
+ --limit NUM            Limit the total number of cleans to NUM
+ --lock-host NAME       The hostname for the redis server for the distributed locking
     
     EOF
   end
@@ -618,7 +644,9 @@ Options:
       :verbose => false,
       :log_file => nil,
       :num_reducers => 45,
-      :end_style => :paired
+      :end_style => :paired,
+      :lock_limit => nil,
+      :lock_host => '192.168.1.27'
     )
   end
   
@@ -756,6 +784,15 @@ Options:
 
       opts.on("--trim-end NUM", Fixnum) do |bases_to_trim|
         @options.trim_end = bases_to_trim
+      end
+
+      opts.on("--limit NUM", Fixnum) do |limit|
+        @options.lock_limit = limit
+        require 'redis-semaphore'
+      end
+
+      opts.on("--lock-host HOST", String) do |hostname|
+        @options.lock_host = hostname
       end
     end
     
