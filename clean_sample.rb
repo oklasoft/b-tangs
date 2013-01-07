@@ -161,11 +161,12 @@ class SampleCleanerApp
 
   def setup_lock()
     return unless @options.lock_limit
-    @lock = Redis::Semaphore(:btangs_lock,@options.lock_limit,:host => @options.lock_host)
+    @lock = Redis::Semaphore.new(:btangs_lock,@options.lock_limit,:host => @options.lock_host)
   end
 
   def with_lock(&block)
     if @lock
+      output_user("Waiting for lock from #{@options.lock_host}")
       @lock.lock do
         yield
       end
@@ -782,12 +783,12 @@ Options:
         @options.base_output_dir = output_destination
       end
 
-      opts.on("--trim-end NUM", Fixnum) do |bases_to_trim|
+      opts.on("--trim-end NUM") do |bases_to_trim|
         @options.trim_end = bases_to_trim
       end
 
-      opts.on("--limit NUM", Fixnum) do |limit|
-        @options.lock_limit = limit
+      opts.on("--limit NUM") do |limit|
+        @options.lock_limit = limit.to_i
         require 'redis-semaphore'
       end
 
