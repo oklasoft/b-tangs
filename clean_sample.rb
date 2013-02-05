@@ -63,6 +63,7 @@ require 'rubygems'
 require 'optparse'
 require 'ostruct'
 require 'tmpdir'
+require 'zlib'
 
 require 'omrf/fstream_logger'
 require 'omrf/time_decorator'
@@ -163,24 +164,16 @@ class SampleCleanerApp
     start_time = Time.now
     output_user "Starting clean of #{@options.sample} at #{start_time.utc}"
     
-    try("Error getting sequence") {get_raw_input_sequence()}
-
     try("Error detecting sequence type") {detect_sequence_type()}
     
     output_user("Working with #{@options.sequence_format} file(s)")
 
-    if [:fastq,:fastq18].include?(@options.sequence_format)
-      try("Error flattening fastq") {flatten_fastq()} 
-    end
-
-    try("Error counting raw") {count_input_sequence()}
-
-    output_user("Will clean #{@metrics[:raw]} reads")
-
     try("Error creating hadoop working dir") {make_hadoop_workdir()}
     
     try("Error putting input to hadoop") {put_input_sequnce_into_hadoop()}
-    
+
+    output_user("Will clean #{@metrics[:raw]} reads")
+
     try("Error joining reads") {join_reads_in_hadoop()}
     
     try("Error cleaning joined reads") {clean_reads_in_hadoop_with_btangs()}
@@ -189,7 +182,7 @@ class SampleCleanerApp
     
     try("Error output from hadoop") {get_output_out_of_hadoop()}
     
-    try("Error cleaning hadoop") {clean_hadoop()}
+    #try("Error cleaning hadoop") {clean_hadoop()}
     
     try("Error splitting output") {split_output()}
     
@@ -218,45 +211,31 @@ class SampleCleanerApp
     end
   end
   
-  # take the original input files, decompressing & copying them over to our
-  # temp work dir. Also replace any possible crappy CRLF action
-  def get_raw_input_sequence
-    @options.input_files.each_with_index do |infile,index|
-      decompressor = case File.extname(infile)
-        when /\.gz/
-          "zcat"
-        when /\.lzo/
-          "lzop -dc"
-        else
-          "cat"
-      end
-      outfile = "#{index+1}.txt"
-      cmd = "#{decompressor} \"#{infile}\" | tr -d '\\r' > #{outfile}"
-
-      wrap_command(cmd) do
-        output_user("Getting raw sequence in #{infile}")        
-      end
-      @options.input_files[index] = File.join(Dir.pwd,outfile)
-    end
-    return true
-  end
-  
   def detect_sequence_type()
     output_user("Detecting input format via '#{@options.input_files.first}'")
-    IO.foreach(@options.input_files.first) do |line|
-      parts = line.chomp.split(/\t/)
-      if NUMBER_FASTQ_FIELDS == parts.size
-        if parts.first.split(/\s+/).size > 1 then
-          return @options.sequence_format = :fastq18
-        else
-          return @options.sequence_format = :fastq
-        end
-      elsif NUMBER_QSEQ_FIELDS == parts.size
-        return @options.sequence_format = :qseq
+    filename = @options.input_files.first
+    file = case File.extname(filename)
+           when /\.gz/
+             @options.raw_reader_command = "zcat"
+             Zlib::GzipReader.open(filename)
+           else
+             @options.raw_reader_command = "cat"
+             File.open(filename)
+           end
+    line = file.readline
+    parts = line.chomp.split(/\t/)
+    if NUMBER_FASTQ_FIELDS == parts.size
+      if parts.first.split(/\s+/).size > 1 then
+        return @options.sequence_format = :fastq18
+      else
+        return @options.sequence_format = :fastq
       end
-      return "unknown format with #{parts.size} fields in '#{line.chomp}' from #{@options.input_files.first}"
+    elsif NUMBER_QSEQ_FIELDS == parts.size
+      return @options.sequence_format = :qseq
+    else
+      return "unknown format with #{parts.size} fields in '#{line.chomp}' from #{filename}"
     end
-    return "unknown format with NO fields in empty file from #{@options.input_files.first}"
+    return "unknown format with NO fields in empty file from #{filename}"
   end
   
   def flatten_fastq()
@@ -274,20 +253,6 @@ class SampleCleanerApp
       File.delete(infile)
       @options.input_files[index] = File.join(Dir.pwd,outfile)      
     end
-    return true
-  end
-  
-  def count_input_sequence()
-    lines = []
-    @options.input_files.each do |input_file|
-      lines << count_lines(input_file)
-    end
-    if 1 != lines.uniq.size
-      return "different number of lines in '#{@options.input_files.join(",")}', #{lines.join(":")}"
-    elsif 0 == lines[0] 
-      return "No lines in input files '#{@options.input_files.join(",")}"
-    end
-    @metrics[:raw] = lines[0]
     return true
   end
   
@@ -317,11 +282,29 @@ class SampleCleanerApp
   end
   
   def put_input_sequnce_into_hadoop()
-    files = @options.input_files.join(" ")
-    cmd = "hadoop fs -put #{files} #{hadoop_input_dir()}"
-    wrap_command(cmd) do
-      output_user("Putting #{files} into hadoop")
+    lines = []
+    files = @options.input_files.each_with_index do |file,index|
+      flatten = if [:fastq,:fastq18].include?(@options.sequence_format) then
+                  cmd = %{ | awk '{printf( "%s%s", $0, (NR%4 ? "\\t" : "\\t#{index+1}\\n") ) }' }
+                end
+      cmd = "#{@options.raw_reader_command} \"#{file}\" | tr -d '\\r' #{flatten}"
+      cmd = "#{cmd} | count_lines_and_echo.rb /tmp/btang_line_count.#{$$} |hadoop fs -put - #{hadoop_input_dir()}/file_#{index}"
+      #cmd = "#{cmd} |hadoop fs -put - #{hadoop_input_dir()}/file_#{index}"
+      wrap_command(cmd) do
+        output_user("Putting #{file} into hadoop")
+      end
+      File.open("/tmp/btang_line_count.#{$$}") do |f|
+        lines << f.readline.chomp.to_i
+      #lines << 1333
+      end
+      File.delete("/tmp/btang_line_count.#{$$}")
+    end #each file
+    if 1 != lines.uniq.size
+      return "different number of lines in '#{@options.input_files.join(",")}', #{lines.join(":")}"
+    elsif 0 == lines[0] 
+      return "No lines in input files '#{@options.input_files.join(",")}"
     end
+    @metrics[:raw] = lines[0]
   end
 
   def join_reads_in_hadoop()
@@ -617,7 +600,7 @@ Options:
       :base_output_dir => nil,
       :verbose => false,
       :log_file => nil,
-      :num_reducers => 45,
+      :num_reducers => 11,
       :end_style => :paired
     )
   end
