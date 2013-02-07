@@ -115,10 +115,10 @@ class SampleCleanerApp
         }
     }
   
-  VERSION       = "1.4.0"
-  REVISION_DATE = "2012-11-12"
+  VERSION       = "1.5.0"
+  REVISION_DATE = "2013-02-07"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
-  COPYRIGHT     = "Copyright (c) 2012 Oklahoma Medical Research Foundation"
+  COPYRIGHT     = "Copyright (c) 2012-2013 Oklahoma Medical Research Foundation"
   
   def initialize(args,ios = {})
     @args = args
@@ -133,7 +133,6 @@ class SampleCleanerApp
       
       return_dir = Dir.pwd
       tmp_base = File.join(final_output_dir_path())
-      # tmp_base = nil
       Dir.mktmpdir(nil,tmp_base) do |tmp_dir|
         Dir.chdir(tmp_dir)
         clean_sample()
@@ -182,9 +181,7 @@ class SampleCleanerApp
     
     try("Error output from hadoop") {get_output_out_of_hadoop()}
     
-    #try("Error cleaning hadoop") {clean_hadoop()}
-    
-    try("Error splitting output") {split_output()}
+    try("Error cleaning hadoop") {clean_hadoop()}
     
     try("Error counting output sequence") {count_output_sequences()}
     
@@ -238,24 +235,6 @@ class SampleCleanerApp
     return "unknown format with NO fields in empty file from #{filename}"
   end
   
-  def flatten_fastq()
-    @options.input_files.each_with_index do |infile,index|
-      outfile = "#{index+1}_flattened.txt"
-      cmd = %{awk '{printf( "%s%s", $0, (NR%4 ? "\\t" : "\\t#{index+1}\\n") ) }' #{infile} > #{outfile}}
-
-      c = OMRF::LoggedExternalCommand.new(cmd,@logger)
-      output_user("Flattening fastq of #{infile}")
-      output_user("Executing: `#{cmd}`",true)
-      unless c.run
-        return "#{cmd} failed: #{c.exit_status}"
-      end
-
-      File.delete(infile)
-      @options.input_files[index] = File.join(Dir.pwd,outfile)      
-    end
-    return true
-  end
-  
   def count_lines(input_file)
     num_lines = 0
     IO.foreach(input_file) do
@@ -288,16 +267,14 @@ class SampleCleanerApp
                   cmd = %{ | awk '{printf( "%s%s", $0, (NR%4 ? "\\t" : "\\t#{index+1}\\n") ) }' }
                 end
       cmd = "#{@options.raw_reader_command} \"#{file}\" | tr -d '\\r' #{flatten}"
-      cmd = "#{cmd} | count_lines_and_echo.rb /tmp/btang_line_count.#{$$} |hadoop fs -put - #{hadoop_input_dir()}/file_#{index}"
+      cmd = "#{cmd} | count_lines_and_echo.rb #{count_file_path("RAW")} |hadoop fs -put - #{hadoop_input_dir()}/file_#{index}"
       #cmd = "#{cmd} |hadoop fs -put - #{hadoop_input_dir()}/file_#{index}"
       wrap_command(cmd) do
         output_user("Putting #{file} into hadoop")
       end
-      File.open("/tmp/btang_line_count.#{$$}") do |f|
+      File.open(count_file_path("RAW")) do |f|
         lines << f.readline.chomp.to_i
-      #lines << 1333
       end
-      File.delete("/tmp/btang_line_count.#{$$}")
     end #each file
     if 1 != lines.uniq.size
       return "different number of lines in '#{@options.input_files.join(",")}', #{lines.join(":")}"
@@ -380,24 +357,26 @@ class SampleCleanerApp
   end
   
   def get_output_out_of_hadoop()
-    cmd = "hadoop fs -get #{hadoop_final_dir}part-\\* ."
-    wrap_command(cmd) do
+    get_output_file = File.join(Dir.pwd,"get_results.sh")
+    File.open(get_output_file,"w") do |cmd_file|
+      cmd_file.puts "hadoop fs -cat #{hadoop_final_dir}part-\\* | \\"
+      cmd_file.puts "tee >( #{split_rejects()} ) \\"
+      cmd_file.puts ">( #{split_conflicts()} ) \\"
+      cmd_file.puts ">( #{split_didnt_yields()} ) | \\"
+      cmd_file.puts "#{split_passings()}"
+    end
+    puts get_output_file
+    wrap_command("bash #{get_output_file}") do
       output_user("Getting dataset back out of hadoop")
     end
   end
-  
-  def split_output()
-    split_rejects() &&
-    split_conflicts() &&
-    split_didnt_yields() &&
-    split_passings
+
+  def count_file_path(key)
+    File.join(Dir.pwd,"btangs_#{key}.#{$$}")
   end
   
   def split_key_from_data_to_dest(key,dest)
-    cmd = "fgrep -h #{key} part-* > #{dest}"
-    wrap_command(cmd) do
-      output_user("Splitting #{key} to #{dest}")
-    end
+    cmd = "fgrep -h #{key} | count_lines_and_echo.rb #{count_file_path(key)} > #{dest}"
   end
   
   def split_rejects()
@@ -430,16 +409,9 @@ class SampleCleanerApp
         %{awk -F '\\t' '{print $6"\\n"$7"\\n"$8"\\n"$9}' > #{File.join(final_output_dir_path(),pair_2_file)}}
       ]
     end
-    cmd = "fgrep -h PASS part-* | tee >( #{cuts[0]} ) >( #{cuts[1]} ) >/dev/null"
+    cmd = "fgrep -h PASS  | tee >( #{cuts[0]} ) >( #{cuts[1]} ) | wc -l > #{count_file_path("PASSING")}"
   
-    split_passing = File.join(Dir.pwd,"split_passing.sh")
-    File.open(split_passing,"w") do |f|
-      f.puts "/bin/bash"
-      f.puts cmd
-    end
-    wrap_command("bash #{split_passing}") do
-      output_user("Splitting the passing read to the two pair files #{pair_1_file} & #{pair_2_file}")
-    end
+    return cmd
   end
 
   def split_single_passings
@@ -454,43 +426,34 @@ class SampleCleanerApp
         %{awk -F '\\t' '{print $1"\\n"$2"\\n"$3"\\n"$4}' > #{File.join(final_output_dir_path(),file)}}
       ]
     end
-    cmd = "fgrep -h PASS part-* | #{cuts[0]}"
+    cmd = "fgrep -h PASS  | tee >(#{cuts[0]}) | wc -l > #{count_file_path("PASSING")}"
   
-    split_passing = File.join(Dir.pwd,"split_passing.sh")
-    File.open(split_passing,"w") do |f|
-      f.puts "/bin/bash"
-      f.puts cmd
-    end
-    wrap_command("bash #{split_passing}") do
-      output_user("Saving the passing read to the single file #{file}")
-    end
+    return cmd
   end
   
+  def count_from_file!(file)
+    line = 0
+    File.open(file) do |f|
+      line = f.readline.chomp.to_i
+    end
+    return line
+  end
   def count_output_sequences()
     output_user("Counting up the number of reads in the various files")
 
-    @metrics[:conflicted] = count_lines(File.join(final_output_dir_path(),CONFLICTS_FILE))
+    @metrics[:conflicted] = count_from_file!(count_file_path("CONFLICTS"))
     output_user("There were #{@metrics[:conflicted]} conflicts")
     
-    @metrics[:unknown] = count_lines(File.join(final_output_dir_path(),DIDNT_YIELD_FILE))
+    @metrics[:unknown] = count_from_file!(count_file_path("DIDNT_YIELD"))
     output_user("There were #{@metrics[:unknown]} unknowns")
 
-    @metrics[:rejected] = count_lines(File.join(final_output_dir_path(),REJECT_FILE))
+    @metrics[:rejected] = count_from_file!(count_file_path("REJECT"))
     output_user("There were #{@metrics[:rejected]} rejects")
     
+    cleaned_file_count = count_from_file!(count_file_path("PASSING"))
     
-    cleaned_file_counts = END_STYLES[@options.end_style][:output_file_pair_numbers].map {|i| count_lines(File.join(final_output_dir_path(),cleaned_sequence_base_file_name(i)))}
-    
-    if :fastq == @options.sequence_format || :fastq18 == @options.sequence_format
-      cleaned_file_counts = cleaned_file_counts.map {|c| c/4}
-    end
-    
-    if 1 != cleaned_file_counts.uniq.size
-      return "There were different number of cleaned in the cleaned files #{cleaned_file_counts.join(";")}"
-    end
-    
-    output_user("There were #{cleaned_file_counts.first} passing")
-    @metrics[:passed_cleaned] = cleaned_file_counts.first
+    output_user("There were #{cleaned_file_count} passing")
+    @metrics[:passed_cleaned] = cleaned_file_count
 
     return true
   end
