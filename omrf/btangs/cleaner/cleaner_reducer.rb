@@ -53,7 +53,7 @@ module Cleaner
     def name_for(read)
       if INPUT_FORMATS[:fastq] == options[:input_format] || INPUT_FORMATS[:joined_fastq] == options[:input_format] 
         read[0].split(/\//).first #strip of the end /read_number
-      elsif INPUT_FORMATS[:joined_fastq18] == options[:input_format] 
+      elsif INPUT_FORMATS[:fastq18] == options[:input_format] || INPUT_FORMATS[:joined_fastq18] == options[:input_format] 
         read[0].split(/\s/).first #strip of the end /read_number
       elsif INPUT_FORMATS[:qseq] == options[:input_format] || INPUT_FORMATS[:joined_qseq] == options[:input_format]
         read[0..6].join("_")

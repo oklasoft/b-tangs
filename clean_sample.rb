@@ -111,12 +111,13 @@ class SampleCleanerApp
           :finalize_clean_reads_method => :finalize_clean_single_reads_in_hadoop,
           :split_passings_method => :split_single_passings,
           :fastq_file_type => 'fastq',
+          :fastq18_file_type => 'fastq18',
           :qseq_file_type => 'qseq'
         }
     }
   
-  VERSION       = "1.5.0"
-  REVISION_DATE = "2013-02-07"
+  VERSION       = "1.6.0"
+  REVISION_DATE = "2013-03-05"
   AUTHOR        = "Stuart Glenn <Stuart-Glenn@omrf.org>"
   COPYRIGHT     = "Copyright (c) 2012-2013 Oklahoma Medical Research Foundation"
   

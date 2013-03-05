@@ -9,7 +9,8 @@ module Cleaner
       :joined_fastq18 => "joined_fastq18",
       :joined_qseq => "joined_qseq",
       :qseq => "qseq",
-      :fastq => "fastq"
+      :fastq => "fastq",
+      :fastq18 => "fastq18"
     }
     
     def check_key_type_works_for_input_format!()
@@ -40,6 +41,9 @@ module Cleaner
           @sequence_index = [OMRF::Btangs::Cleaner::QSEQ_SEQUENCE_INDEX]
           @quality_col = [OMRF::Btangs::Cleaner::QSEQ_QUALITY_INDEX]
         when INPUT_FORMATS[:fastq]
+          @sequence_index = [OMRF::Btangs::Cleaner::FASTA_SEQUENCE_INDEX]
+          @quality_col = [OMRF::Btangs::Cleaner::FASTA_QUALITY_INDEX]
+        when INPUT_FORMATS[:fastq18]
           @sequence_index = [OMRF::Btangs::Cleaner::FASTA_SEQUENCE_INDEX]
           @quality_col = [OMRF::Btangs::Cleaner::FASTA_QUALITY_INDEX]
         else
